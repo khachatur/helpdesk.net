@@ -1,0 +1,205 @@
+/* App shell only. Components take their look from the DevExtreme theme imported in main.tsx. */
+
+:root {
+  --border: #e0e0e0;
+  --text-muted: #616161;
+  --ok: #107c10;
+  --bad: #c50f1f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, Roboto, sans-serif;
+  color: #242424;
+  background: #fafafa;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.status-list {
+  max-width: 320px;
+  margin: 24px 0;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.status-row dt {
+  color: var(--text-muted);
+}
+
+.status-row dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.status-healthy {
+  color: var(--ok);
+}
+
+.status-unhealthy {
+  color: var(--bad);
+}
+
+.app-header {
+  gap: 24px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+}
+
+.app-nav a,
+.app-user a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-nav a:hover,
+.app-user a:hover,
+.app-nav a.active,
+.app-user a.active {
+  color: #0f6cbd;
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.app-user-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.page-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-card h1 {
+  margin-bottom: 24px;
+  font-size: 20px;
+}
+
+.form-card {
+  max-width: 440px;
+  margin-top: 16px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.form-error {
+  margin: 0 0 16px;
+  color: var(--bad);
+  font-size: 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: #dff6dd;
+  color: var(--ok);
+}
+
+.badge-deactivated {
+  background: #f0f0f0;
+  color: var(--text-muted);
+}
+
+.badge-locked-out {
+  background: #fde7e9;
+  color: var(--bad);
+}
