@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    name: API build and test
+    runs-on: ubuntu-latest
+    env:
+      # Throwaway password for the job's own SQL Server container. Not used anywhere else.
+      MSSQL_SA_PASSWORD: Ci-Only-Passw0rd
+      HELPDESK_TEST_CONNECTION: Server=localhost,1433;Database=Helpdesk_Test;User Id=sa;Password=Ci-Only-Passw0rd;TrustServerCertificate=True
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Ci-Only-Passw0rd
+        ports:
+          - 1433:1433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore Helpdesk.slnx
+      - run: dotnet build Helpdesk.slnx --no-restore --configuration Release
+      - run: dotnet test Helpdesk.slnx --no-build --configuration Release
+
+  web:
+    name: Web lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
