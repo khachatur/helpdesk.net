@@ -56,17 +56,17 @@ Outcome: the seeded admin can sign in and create agents; agents can sign in.
 
 Outcome: tickets can be listed, filtered, opened, and worked on by hand, using seeded data.
 
-- [ ] 2.1 Write the schema for tickets and ticket messages (status, category, team, owner, link to an original ticket, timestamps).
-- [ ] 2.2 Implement the status rules in the core project: allowed transitions, Closed is final. (A2)
-- [ ] 2.3 Add the ticket list endpoint with server-side filtering, sorting, and paging.
-- [ ] 2.4 Add the ticket detail endpoint, returning the full conversation.
-- [ ] 2.5 Add endpoints to change status, change category, and add an agent reply (stored only; sending comes in phase 3).
-- [ ] 2.6 Record a ticket event history (status changes, reassignments, who and when).
-- [ ] 2.7 Add a development seed script with sample tickets.
-- [ ] 2.8 Build the ticket list with a DevExtreme DataGrid using remote operations. (A7)
-- [ ] 2.9 Build the ticket detail view: conversation thread, status and category controls, reply box.
-- [ ] 2.10 Sanitise email HTML before display, since message bodies are untrusted.
-- [ ] 2.11 Write tests for the status rules and the list query.
+- [x] 2.1 Write the schema for tickets and ticket messages (status, category, owner, link to an original ticket, timestamps). The team column is added with the teams table in phase 4.
+- [x] 2.2 Implement the status rules in the core project: allowed transitions, Closed is final. (A2)
+- [x] 2.3 Add the ticket list endpoint with server-side filtering, sorting, and paging.
+- [x] 2.4 Add the ticket detail endpoint, returning the full conversation.
+- [x] 2.5 Add endpoints to change status, change category, and add an agent reply (stored only; sending comes in phase 3).
+- [x] 2.6 Record a ticket event history (status changes, reassignments, who and when).
+- [x] 2.7 Seed sample tickets at startup in development when the tickets table is empty (`Seed:SampleTickets`).
+- [x] 2.8 Build the ticket list with a DevExtreme DataGrid using remote paging and sorting, with filters above the grid. (A7)
+- [x] 2.9 Build the ticket detail view: conversation thread, status and category controls, reply box.
+- [x] 2.10 Sanitise email HTML on the server before display, since message bodies are untrusted. Images are removed.
+- [x] 2.11 Write tests for the status rules and the list query.
 
 ## Phase 3 — Email integration
 

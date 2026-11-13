@@ -1,6 +1,8 @@
 using Helpdesk.Api.Auth;
 using Helpdesk.Api.Health;
+using System.Text.Json.Serialization;
 using Helpdesk.Api.Migrations;
+using Helpdesk.Api.Tickets;
 using Helpdesk.Api.Users;
 using Helpdesk.Infrastructure;
 using Helpdesk.Migrations;
@@ -17,6 +19,9 @@ builder.Services.AddSerilog((services, logger) => logger
 
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+// Enums travel as their names ("Open"), never as numbers.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false)));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHelpdeskAuth(builder.Environment);
 builder.Services.AddHealthChecks()
@@ -32,6 +37,7 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 }
 
 await app.SeedAdminAsync();
+await app.SeedSampleTicketsAsync();
 
 // Unhandled exceptions and bare error status codes are returned as RFC 9457 problem details.
 app.UseExceptionHandler();
@@ -58,6 +64,7 @@ app.MapHealthChecks("/api/health", new HealthCheckOptions { ResponseWriter = Hea
 
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
+app.MapTicketEndpoints();
 
 app.Run();
 

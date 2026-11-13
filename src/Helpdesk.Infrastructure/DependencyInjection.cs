@@ -1,5 +1,7 @@
 using Helpdesk.Infrastructure.Data;
 using Helpdesk.Infrastructure.Identity;
+using Helpdesk.Infrastructure.Tickets;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +16,9 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory>(_ =>
             new SqlConnectionFactory(configuration.GetRequiredHelpdeskConnectionString()));
         services.AddSingleton<UserQueries>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<TicketStore>();
+        services.AddSingleton<EmailHtmlSanitizer>();
 
         return services;
     }

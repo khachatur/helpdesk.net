@@ -1,5 +1,7 @@
 using System.Net.Http.Json;
 using Dapper;
+using Helpdesk.Core.Tickets;
+using Helpdesk.Infrastructure.Tickets;
 using Helpdesk.Migrations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -29,7 +31,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         DatabaseMigrator.Migrate(ConnectionString);
 
         using var connection = new SqlConnection(ConnectionString);
-        connection.Execute("DELETE FROM dbo.Users");
+        connection.Execute("DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets; DELETE FROM dbo.Users;");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -60,6 +62,19 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
     }
 
     public Task<HttpClient> SignInAsAdminAsync() => SignInAsync(AdminEmail, AdminPassword);
+
+    public TicketStore Tickets => Services.GetRequiredService<TicketStore>();
+
+    /// <summary>Creates a ticket the way an incoming email will, and returns its number.</summary>
+    public Task<int> CreateTicketAsync(
+        string subject = "Test ticket",
+        TicketCategory? category = null,
+        string requesterEmail = "student@example.com",
+        string? bodyHtml = null,
+        DateTimeOffset? receivedAt = null) =>
+        Tickets.CreateAsync(
+            new NewTicket(subject, requesterEmail, "Test Student", "Hello, I need help.", bodyHtml, category, receivedAt),
+            CancellationToken.None);
 
     /// <summary>Creates an active agent with a unique email and returns its credentials and id.</summary>
     public async Task<(Guid Id, string Email, string Password)> CreateAgentAsync(HttpClient admin)

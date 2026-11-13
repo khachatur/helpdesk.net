@@ -14,10 +14,9 @@ export function AppLayout() {
         </NavLink>
 
         <nav className="app-nav" aria-label="Main">
-          <NavLink to="/" end>
-            Home
-          </NavLink>
+          <NavLink to="/tickets">Tickets</NavLink>
           {user?.role === 'Admin' && <NavLink to="/agents">Agents</NavLink>}
+          {user?.role === 'Admin' && <NavLink to="/status">System status</NavLink>}
         </nav>
 
         {user && (

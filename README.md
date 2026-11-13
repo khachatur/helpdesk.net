@@ -58,6 +58,8 @@ npm --prefix web run dev                          # web app on http://localhost:
 ```
 
 In development the API creates the `Helpdesk` database and applies pending migrations at startup.
+While the tickets table is empty it also adds about 60 sample tickets (`Seed:SampleTickets` in
+`appsettings.Development.json`).
 The web app proxies `/api` to the API, so the browser only talks to `localhost:5173`.
 
 ## Tests
