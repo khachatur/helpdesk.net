@@ -39,6 +39,11 @@ public sealed class TicketMessage
     public string? BodyHtml { get; init; }
 
     public DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>Outbound only: whether the reply has been emailed.</summary>
+    public MessageSendStatus? SendStatus { get; init; }
+
+    public string? SendError { get; init; }
 }
 
 public sealed class TicketEvent
@@ -61,7 +66,10 @@ public sealed record NewTicket(
     string? BodyHtml = null,
     TicketCategory? Category = null,
     DateTimeOffset? ReceivedAt = null,
-    int? OriginalTicketId = null);
+    int? OriginalTicketId = null,
+    string? InternetMessageId = null,
+    string? ProviderMessageId = null,
+    string? ConversationId = null);
 
 public enum TicketSort
 {
@@ -109,4 +117,43 @@ public enum TicketChangeResult
 
     /// <summary>The ticket's current status does not allow the change.</summary>
     NotAllowed,
+}
+
+/// <summary>An email from the requester that belongs to an existing ticket.</summary>
+public sealed record InboundReply(
+    string SenderEmail,
+    string? SenderName,
+    string BodyText,
+    string? BodyHtml,
+    DateTimeOffset ReceivedAt,
+    string? InternetMessageId,
+    string? ProviderMessageId,
+    string? ConversationId);
+
+public enum AppendResult
+{
+    Appended,
+
+    /// <summary>The ticket was resolved, and the reply reopened it.</summary>
+    Reopened,
+
+    /// <summary>The ticket is closed, so nothing was added.</summary>
+    TicketClosed,
+    NotFound,
+}
+
+/// <summary>An agent reply, with what is needed to email it.</summary>
+public sealed class OutboundReply
+{
+    public long Id { get; init; }
+    public int TicketId { get; init; }
+    public string Subject { get; init; } = "";
+    public string RequesterEmail { get; init; } = "";
+    public string? RequesterName { get; init; }
+    public string BodyText { get; init; } = "";
+    public MessageSendStatus? SendStatus { get; init; }
+    public int SendAttempts { get; init; }
+
+    /// <summary>The requester's latest email on the ticket, which the reply answers. Null when there is none.</summary>
+    public string? ReplyToProviderMessageId { get; init; }
 }

@@ -39,4 +39,11 @@ public static class TicketStatusRules
 
         return current == TicketStatus.NeedsHumanReview ? TicketStatus.Open : current;
     }
+
+    /// <summary>
+    /// The status a ticket takes when the requester replies. A resolved ticket reopens;
+    /// otherwise the status stays as it is. (A closed ticket never gets here: the reply becomes a new ticket.)
+    /// </summary>
+    public static TicketStatus AfterRequesterReply(TicketStatus current) =>
+        current == TicketStatus.Resolved ? TicketStatus.Open : current;
 }

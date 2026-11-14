@@ -15,9 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="HtmlSanitizer" Version="11.0.26" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Graph" Version="6.10.0" />
   </ItemGroup>
 
 </Project>

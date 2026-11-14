@@ -14,6 +14,7 @@ import {
   useAddReply,
   useChangeCategory,
   useChangeStatus,
+  useRetrySend,
   useTicket,
   type TicketCategory,
   type TicketDetail,
@@ -82,8 +83,8 @@ function TicketView({ ticket }: { ticket: TicketDetail }) {
       <div className="ticket-layout">
         <div className="ticket-main">
           <div className="conversation">
-            {ticket.messages.map((message) => (
-              <Message key={message.id} message={message} />
+            {ticket.messages.map((message, index) => (
+              <Message key={message.id} message={message} ticketId={ticket.id} isFirst={index === 0} />
             ))}
           </div>
 
@@ -103,8 +104,11 @@ function TicketView({ ticket }: { ticket: TicketDetail }) {
   )
 }
 
-function Message({ message }: { message: TicketMessage }) {
+function Message({ message, ticketId, isFirst }: { message: TicketMessage; ticketId: number; isFirst: boolean }) {
   const outbound = message.direction === 'Outbound'
+  // A reply's HTML repeats the whole earlier conversation as a quote, so replies show the
+  // requester's own words (the text version) unless the reader asks for the full email.
+  const [showFull, setShowFull] = useState(isFirst)
   const author = outbound
     ? (message.authorName ?? 'Helpdesk')
     : (message.senderName ?? message.senderEmail ?? 'Requester')
@@ -121,15 +125,52 @@ function Message({ message }: { message: TicketMessage }) {
           {formatDateTime(message.createdAt)}
         </time>
       </header>
-      {message.bodyHtml ? (
+      {message.bodyHtml && showFull ? (
         // Email HTML is untrusted. The API sanitises it (EmailHtmlSanitizer) down to plain
         // formatting before it gets here; never render HTML from any other field.
         <div className="message-body message-html" dangerouslySetInnerHTML={{ __html: message.bodyHtml }} />
       ) : (
         <div className="message-body message-text">{message.bodyText}</div>
       )}
+      {message.bodyHtml && !isFirst && (
+        <button type="button" className="link-button" onClick={() => setShowFull(!showFull)}>
+          {showFull ? 'Show reply only' : 'Show full email'}
+        </button>
+      )}
+      {outbound && <SendState message={message} ticketId={ticketId} />}
     </article>
   )
+}
+
+function SendState({ message, ticketId }: { message: TicketMessage; ticketId: number }) {
+  const retry = useRetrySend(ticketId)
+
+  switch (message.sendStatus) {
+    case 'Pending':
+      return <p className="send-state muted">Sending…</p>
+    case 'Sent':
+      return <p className="send-state send-ok">Emailed to the requester</p>
+    case 'Skipped':
+      return <p className="send-state muted">Not emailed: email was not set up when this reply was written.</p>
+    case 'Failed':
+      return (
+        <p className="send-state send-failed" role="alert">
+          Could not be emailed{message.sendError ? ` (${message.sendError})` : ''}.{' '}
+          <button
+            type="button"
+            className="link-button"
+            disabled={retry.isPending}
+            onClick={() =>
+              retry.mutate(message.id, { onError: (error) => notify(errorMessage(error), 'error', 5000) })
+            }
+          >
+            Try again
+          </button>
+        </p>
+      )
+    default:
+      return null
+  }
 }
 
 function ReplyBox({ ticket }: { ticket: TicketDetail }) {
@@ -144,7 +185,7 @@ function ReplyBox({ ticket }: { ticket: TicketDetail }) {
       {
         onSuccess: () => {
           setBody('')
-          notify(resolve ? 'Reply saved and ticket resolved.' : 'Reply saved.', 'success', 3000)
+          notify(resolve ? 'Reply added and ticket resolved.' : 'Reply added.', 'success', 3000)
         },
       },
     )
@@ -164,10 +205,6 @@ function ReplyBox({ ticket }: { ticket: TicketDetail }) {
         valueChangeEvent="input"
         disabled={addReply.isPending}
       />
-      <p className="field-hint">
-        Replies are saved on the ticket only. They are not emailed to the requester until email integration is
-        added.
-      </p>
 
       {addReply.isError && (
         <p className="form-error" role="alert">
@@ -177,13 +214,13 @@ function ReplyBox({ ticket }: { ticket: TicketDetail }) {
 
       <div className="dialog-actions">
         <Button
-          text="Save reply"
+          text="Send reply"
           stylingMode="outlined"
           disabled={addReply.isPending || !body.trim()}
           onClick={() => send(false)}
         />
         <Button
-          text="Save reply and resolve"
+          text="Send reply and resolve"
           type="default"
           disabled={addReply.isPending || !body.trim()}
           onClick={() => send(true)}
@@ -320,7 +357,9 @@ function describe(event: TicketEvent): string {
     case 'Created':
       return 'Ticket created'
     case 'ReplyAdded':
-      return 'Reply added'
+      return 'Agent replied'
+    case 'ReplyReceived':
+      return 'Requester replied'
     case 'StatusChanged':
       return `Status: ${label(statusLabels, event.from)} → ${label(statusLabels, event.to)}`
     case 'CategoryChanged':

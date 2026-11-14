@@ -43,11 +43,14 @@ export interface TicketMessage {
   /** Sanitised by the API. Null for plain-text messages. */
   bodyHtml: string | null
   createdAt: string
+  /** For agent replies: whether the reply has been emailed. Null for incoming messages. */
+  sendStatus: 'Pending' | 'Sent' | 'Failed' | 'Skipped' | null
+  sendError: string | null
 }
 
 export interface TicketEvent {
   id: number
-  type: 'Created' | 'StatusChanged' | 'CategoryChanged' | 'ReplyAdded'
+  type: 'Created' | 'StatusChanged' | 'CategoryChanged' | 'ReplyAdded' | 'ReplyReceived'
   /** Null when the system made the change. */
   actorName: string | null
   from: string | null
@@ -121,6 +124,9 @@ export function useTicket(id: number) {
     queryKey: ticketKey(id),
     queryFn: ({ signal }) => api<TicketDetail>(`/tickets/${id}`, { signal }),
     enabled: Number.isInteger(id) && id > 0,
+    // While a reply is waiting to be emailed, check back so its status updates on screen.
+    refetchInterval: (query) =>
+      query.state.data?.messages.some((message) => message.sendStatus === 'Pending') ? 4000 : false,
   })
 }
 
@@ -138,6 +144,15 @@ export function useChangeCategory(id: number) {
   return useMutation({
     mutationFn: (category: TicketCategory) =>
       api<void>(`/tickets/${id}/category`, { method: 'PUT', body: { category } }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ticketKey(id) }),
+  })
+}
+
+export function useRetrySend(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (messageId: number) =>
+      api<void>(`/tickets/${id}/messages/${messageId}/retry-send`, { method: 'POST' }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ticketKey(id) }),
   })
 }

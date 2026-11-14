@@ -46,6 +46,7 @@ public class HealthEndpointTests(HealthEndpointTests.ApiFactory factory)
         {
             builder.UseEnvironment("Testing");
             builder.UseSetting("Database:MigrateOnStartup", "false");
+            builder.UseSetting("BackgroundJobs:Enabled", "false");
             builder.UseSetting(
                 "ConnectionStrings:Helpdesk",
                 "Server=127.0.0.1,1;Database=Helpdesk;User Id=nobody;Password=nothing;Connect Timeout=1;Encrypt=False");

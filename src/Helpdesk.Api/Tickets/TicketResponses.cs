@@ -71,6 +71,7 @@ public sealed record TicketDetailResponse(
 }
 
 /// <param name="BodyHtml">Sanitised HTML, safe to insert into the page. Null for plain-text messages.</param>
+/// <param name="SendStatus">For agent replies: whether the reply has been emailed. Null for incoming messages.</param>
 public sealed record TicketMessageResponse(
     long Id,
     MessageDirection Direction,
@@ -79,7 +80,9 @@ public sealed record TicketMessageResponse(
     string? AuthorName,
     string BodyText,
     string? BodyHtml,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    MessageSendStatus? SendStatus,
+    string? SendError)
 {
     public static TicketMessageResponse From(TicketMessage message, EmailHtmlSanitizer sanitizer) => new(
         message.Id,
@@ -89,7 +92,9 @@ public sealed record TicketMessageResponse(
         message.AuthorName,
         message.BodyText,
         message.BodyHtml is null ? null : sanitizer.Sanitize(message.BodyHtml),
-        message.CreatedAt);
+        message.CreatedAt,
+        message.SendStatus,
+        message.SendError);
 }
 
 /// <param name="ActorName">Null when the system made the change.</param>

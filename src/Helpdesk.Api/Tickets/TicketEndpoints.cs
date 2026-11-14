@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Helpdesk.Core.Tickets;
+using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Tickets;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Options;
 
 namespace Helpdesk.Api.Tickets;
 
@@ -42,6 +44,7 @@ public static class TicketEndpoints
         group.MapPut("/{id:int}/status", ChangeStatusAsync);
         group.MapPut("/{id:int}/category", ChangeCategoryAsync);
         group.MapPost("/{id:int}/replies", AddReplyAsync);
+        group.MapPost("/{id:int}/messages/{messageId:long}/retry-send", RetrySendAsync);
 
         return routes;
     }
@@ -174,7 +177,13 @@ public static class TicketEndpoints
     }
 
     private static async Task<Results<Created<ReplyCreatedResponse>, NotFound, ValidationProblem, ProblemHttpResult>> AddReplyAsync(
-        int id, AddReplyRequest request, ClaimsPrincipal caller, TicketStore store, CancellationToken cancellationToken)
+        int id,
+        AddReplyRequest request,
+        ClaimsPrincipal caller,
+        TicketStore store,
+        IOptions<EmailOptions> email,
+        IReplyQueue replyQueue,
+        CancellationToken cancellationToken)
     {
         var body = request.Body?.Trim() ?? "";
         if (body.Length == 0)
@@ -190,13 +199,34 @@ public static class TicketEndpoints
             });
         }
 
-        var (result, messageId) = await store.AddAgentReplyAsync(id, caller.GetUserId(), body, request.Resolve, cancellationToken);
+        // The reply is stored first and emailed in the background, so a mail outage never loses what the agent wrote.
+        var send = email.Value.IsEnabled;
+        var (result, messageId) = await store.AddAgentReplyAsync(
+            id, caller.GetUserId(), body, request.Resolve, send, cancellationToken);
+        if (result == TicketChangeResult.Ok && send)
+        {
+            replyQueue.Enqueue(messageId!.Value);
+        }
+
         return result switch
         {
             TicketChangeResult.Ok => TypedResults.Created($"/api/tickets/{id}", new ReplyCreatedResponse(messageId!.Value)),
             TicketChangeResult.NotFound => TypedResults.NotFound(),
             _ => ClosedTicketProblem(),
         };
+    }
+
+    /// <summary>Tries again to email a reply whose sending failed.</summary>
+    private static async Task<Results<NoContent, NotFound>> RetrySendAsync(
+        int id, long messageId, TicketStore store, IReplyQueue replyQueue, CancellationToken cancellationToken)
+    {
+        if (!await store.RetrySendAsync(id, messageId, cancellationToken))
+        {
+            return TypedResults.NotFound();
+        }
+
+        replyQueue.Enqueue(messageId);
+        return TypedResults.NoContent();
     }
 
     private static ProblemHttpResult ClosedTicketProblem() => TypedResults.Problem(

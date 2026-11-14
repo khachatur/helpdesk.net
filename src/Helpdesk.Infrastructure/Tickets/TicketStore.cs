@@ -103,7 +103,7 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
             WHERE t.Id = @id;
 
             SELECT m.Id, m.Direction, m.SenderEmail, m.SenderName, m.AuthorUserId,
-                   author.DisplayName AS AuthorName, m.BodyText, m.BodyHtml, m.CreatedAt
+                   author.DisplayName AS AuthorName, m.BodyText, m.BodyHtml, m.CreatedAt, m.SendStatus, m.SendError
             FROM dbo.TicketMessages m
             LEFT JOIN dbo.Users author ON author.Id = m.AuthorUserId
             WHERE m.TicketId = @id
@@ -160,8 +160,12 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
 
         await connection.ExecuteAsync(new CommandDefinition(
             """
-            INSERT INTO dbo.TicketMessages (TicketId, Direction, SenderEmail, SenderName, BodyText, BodyHtml, CreatedAt)
-            VALUES (@id, @Direction, @RequesterEmail, @RequesterName, @BodyText, @BodyHtml, @receivedAt)
+            INSERT INTO dbo.TicketMessages
+                (TicketId, Direction, SenderEmail, SenderName, BodyText, BodyHtml, CreatedAt,
+                 InternetMessageId, ProviderMessageId, ConversationId)
+            VALUES
+                (@id, @Direction, @RequesterEmail, @RequesterName, @BodyText, @BodyHtml, @receivedAt,
+                 @InternetMessageId, @ProviderMessageId, @ConversationId)
             """,
             new
             {
@@ -172,6 +176,9 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
                 ticket.BodyText,
                 ticket.BodyHtml,
                 receivedAt,
+                ticket.InternetMessageId,
+                ticket.ProviderMessageId,
+                ticket.ConversationId,
             },
             transaction,
             cancellationToken: cancellationToken));
@@ -249,11 +256,12 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
     }
 
     /// <summary>
-    /// Stores an agent's reply on the ticket and, when asked, resolves it.
+    /// Stores an agent's reply on the ticket and, when asked, resolves it. With <paramref name="send"/>
+    /// the reply is left pending for the mail sender; otherwise it is marked as stored only.
     /// Returns the new message's id when the reply was added.
     /// </summary>
     public async Task<(TicketChangeResult Result, long? MessageId)> AddAgentReplyAsync(
-        int id, Guid authorId, string body, bool resolve, CancellationToken cancellationToken)
+        int id, Guid authorId, string body, bool resolve, bool send, CancellationToken cancellationToken)
     {
         await using var connection = await connectionFactory.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -272,11 +280,19 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
         var now = timeProvider.GetUtcNow();
         var messageId = await connection.ExecuteScalarAsync<long>(new CommandDefinition(
             """
-            INSERT INTO dbo.TicketMessages (TicketId, Direction, AuthorUserId, BodyText, CreatedAt)
+            INSERT INTO dbo.TicketMessages (TicketId, Direction, AuthorUserId, BodyText, CreatedAt, SendStatus)
             OUTPUT INSERTED.Id
-            VALUES (@id, @Direction, @authorId, @body, @now)
+            VALUES (@id, @Direction, @authorId, @body, @now, @SendStatus)
             """,
-            new { id, Direction = MessageDirection.Outbound.ToString(), authorId, body, now },
+            new
+            {
+                id,
+                Direction = MessageDirection.Outbound.ToString(),
+                authorId,
+                body,
+                now,
+                SendStatus = (send ? MessageSendStatus.Pending : MessageSendStatus.Skipped).ToString(),
+            },
             transaction,
             cancellationToken: cancellationToken));
 
@@ -298,6 +314,163 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
 
         await transaction.CommitAsync(cancellationToken);
         return (TicketChangeResult.Ok, messageId);
+    }
+
+    /// <summary>
+    /// Finds the ticket an incoming email belongs to: one whose messages share its thread id, or
+    /// include a message it says it replies to. When a closed ticket and its follow-up share a
+    /// thread, the newest ticket wins.
+    /// </summary>
+    public async Task<int?> FindForEmailAsync(
+        string? conversationId, IReadOnlyList<string> referencedMessageIds, CancellationToken cancellationToken)
+    {
+        if (conversationId is null && referencedMessageIds.Count == 0)
+        {
+            return null;
+        }
+
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        return await connection.ExecuteScalarAsync<int?>(new CommandDefinition(
+            """
+            SELECT MAX(TicketId)
+            FROM dbo.TicketMessages
+            WHERE (@conversationId IS NOT NULL AND ConversationId = @conversationId)
+               OR InternetMessageId IN @referencedMessageIds
+            """,
+            // An empty IN list is not valid SQL, so pass a value no Message-ID can equal.
+            new { conversationId, referencedMessageIds = referencedMessageIds.Count == 0 ? [""] : referencedMessageIds },
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>Adds the requester's emailed reply to a ticket, reopening it if it was resolved.</summary>
+    public async Task<AppendResult> AppendInboundAsync(int id, InboundReply reply, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        var current = await LockAsync(connection, transaction, id, cancellationToken);
+        if (current is null)
+        {
+            return AppendResult.NotFound;
+        }
+
+        if (!TicketStatusRules.AcceptsChanges(current.Status))
+        {
+            return AppendResult.TicketClosed;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            INSERT INTO dbo.TicketMessages
+                (TicketId, Direction, SenderEmail, SenderName, BodyText, BodyHtml, CreatedAt,
+                 InternetMessageId, ProviderMessageId, ConversationId)
+            VALUES
+                (@id, @Direction, @SenderEmail, @SenderName, @BodyText, @BodyHtml, @ReceivedAt,
+                 @InternetMessageId, @ProviderMessageId, @ConversationId)
+            """,
+            new
+            {
+                id,
+                Direction = MessageDirection.Inbound.ToString(),
+                reply.SenderEmail,
+                reply.SenderName,
+                reply.BodyText,
+                reply.BodyHtml,
+                reply.ReceivedAt,
+                reply.InternetMessageId,
+                reply.ProviderMessageId,
+                reply.ConversationId,
+            },
+            transaction,
+            cancellationToken: cancellationToken));
+
+        await AddEventAsync(connection, transaction, id, TicketEventType.ReplyReceived, null, null, null, now, cancellationToken);
+
+        var newStatus = TicketStatusRules.AfterRequesterReply(current.Status);
+        if (newStatus != current.Status)
+        {
+            await SetStatusAsync(connection, transaction, id, current.Status, newStatus, null, now, cancellationToken);
+        }
+        else
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE dbo.Tickets SET UpdatedAt = @now WHERE Id = @id",
+                new { id, now },
+                transaction,
+                cancellationToken: cancellationToken));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return newStatus != current.Status ? AppendResult.Reopened : AppendResult.Appended;
+    }
+
+    /// <summary>Loads an agent reply with what is needed to email it. Null if it is not an outbound message.</summary>
+    public async Task<OutboundReply?> GetOutboundAsync(long messageId, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        return await connection.QuerySingleOrDefaultAsync<OutboundReply>(new CommandDefinition(
+            """
+            SELECT m.Id, m.TicketId, t.Subject, t.RequesterEmail, t.RequesterName, m.BodyText, m.SendStatus, m.SendAttempts,
+                   (SELECT TOP (1) inbound.ProviderMessageId
+                    FROM dbo.TicketMessages inbound
+                    WHERE inbound.TicketId = m.TicketId AND inbound.Direction = N'Inbound'
+                      AND inbound.ProviderMessageId IS NOT NULL AND inbound.Id < m.Id
+                    ORDER BY inbound.Id DESC) AS ReplyToProviderMessageId
+            FROM dbo.TicketMessages m
+            JOIN dbo.Tickets t ON t.Id = m.TicketId
+            WHERE m.Id = @messageId AND m.Direction = N'Outbound'
+            """,
+            new { messageId },
+            cancellationToken: cancellationToken));
+    }
+
+    public async Task MarkSentAsync(long messageId, Email.SentEmail sent, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE dbo.TicketMessages
+            SET SendStatus = N'Sent', SendError = NULL, SendAttempts = SendAttempts + 1, SentAt = @now,
+                InternetMessageId = @InternetMessageId, ProviderMessageId = @ProviderMessageId, ConversationId = @ConversationId
+            WHERE Id = @messageId
+            """,
+            new { messageId, now = timeProvider.GetUtcNow(), sent.InternetMessageId, sent.ProviderMessageId, sent.ConversationId },
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>Counts a failed attempt. When <paramref name="final"/>, no more attempts will be made automatically.</summary>
+    public async Task RecordSendFailureAsync(long messageId, string error, bool final, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE dbo.TicketMessages
+            SET SendAttempts = SendAttempts + 1, SendError = @error, SendStatus = @status
+            WHERE Id = @messageId
+            """,
+            new
+            {
+                messageId,
+                error = error.Length <= 1000 ? error : error[..1000],
+                status = (final ? MessageSendStatus.Failed : MessageSendStatus.Pending).ToString(),
+            },
+            cancellationToken: cancellationToken));
+    }
+
+    /// <summary>Puts a failed reply back in line to be sent. False if the message is not a failed reply on this ticket.</summary>
+    public async Task<bool> RetrySendAsync(int ticketId, long messageId, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        var rows = await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE dbo.TicketMessages
+            SET SendStatus = N'Pending', SendAttempts = 0, SendError = NULL
+            WHERE Id = @messageId AND TicketId = @ticketId AND SendStatus = N'Failed'
+            """,
+            new { ticketId, messageId },
+            cancellationToken: cancellationToken));
+        return rows == 1;
     }
 
     public async Task<bool> AnyAsync(CancellationToken cancellationToken)

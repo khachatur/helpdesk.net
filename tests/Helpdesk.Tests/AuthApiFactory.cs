@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Dapper;
 using Helpdesk.Core.Tickets;
+using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Tickets;
 using Helpdesk.Migrations;
 using Microsoft.AspNetCore.Hosting;
@@ -31,7 +32,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         DatabaseMigrator.Migrate(ConnectionString);
 
         using var connection = new SqlConnection(ConnectionString);
-        connection.Execute("DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets; DELETE FROM dbo.Users;");
+        connection.Execute("DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState; DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets; DELETE FROM dbo.Users;");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -43,10 +44,19 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Seed:Admin:Password", AdminPassword);
         builder.UseSetting("Seed:Admin:DisplayName", "Test Admin");
 
+        // No Hangfire in tests: replies are queued on a recording queue and tests run the sender themselves.
+        builder.UseSetting("BackgroundJobs:Enabled", "false");
+        builder.UseSetting("Email:Mode", "Graph");
+        builder.UseSetting("Email:Mailbox", FakeMailbox.Address);
+
         // Re-check the security stamp on every request, so tests see a deactivation immediately
         // instead of after the production one-minute interval.
         builder.ConfigureTestServices(services =>
-            services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero));
+        {
+            services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
+            services.AddSingleton<IMailbox>(Mailbox);
+            services.AddSingleton<IReplyQueue>(ReplyQueue);
+        });
     }
 
     /// <summary>A client with its own cookie jar. HTTPS, because the auth cookie is Secure outside development.</summary>
@@ -62,6 +72,10 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
     }
 
     public Task<HttpClient> SignInAsAdminAsync() => SignInAsync(AdminEmail, AdminPassword);
+
+    public FakeMailbox Mailbox { get; } = new();
+
+    public RecordingReplyQueue ReplyQueue { get; } = new();
 
     public TicketStore Tickets => Services.GetRequiredService<TicketStore>();
 

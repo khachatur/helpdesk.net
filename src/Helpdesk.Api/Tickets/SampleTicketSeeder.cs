@@ -101,14 +101,14 @@ public static class SampleTicketSeeder
             switch (i % 6)
             {
                 case 0 when i < 40:
-                    await store.AddAgentReplyAsync(id, agentId, "Thanks for getting in touch. This is now sorted - let us know if anything else comes up.", resolve: true, CancellationToken.None);
+                    await store.AddAgentReplyAsync(id, agentId, "Thanks for getting in touch. This is now sorted - let us know if anything else comes up.", resolve: true, send: false, CancellationToken.None);
                     await store.ChangeStatusAsync(id, TicketStatus.Closed, agentId, CancellationToken.None);
                     break;
                 case 1 when i < 50:
-                    await store.AddAgentReplyAsync(id, agentId, "Hi, thanks for your message. I've looked into this and it should be resolved now.", resolve: true, CancellationToken.None);
+                    await store.AddAgentReplyAsync(id, agentId, "Hi, thanks for your message. I've looked into this and it should be resolved now.", resolve: true, send: false, CancellationToken.None);
                     break;
                 case 2:
-                    await store.AddAgentReplyAsync(id, agentId, "Thanks - could you send a screenshot of what you see?", resolve: false, CancellationToken.None);
+                    await store.AddAgentReplyAsync(id, agentId, "Thanks - could you send a screenshot of what you see?", resolve: false, send: false, CancellationToken.None);
                     break;
             }
         }

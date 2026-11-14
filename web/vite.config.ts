@@ -13,6 +13,11 @@ export default defineConfig({
         target: process.env.API_URL ?? 'http://localhost:5050',
         changeOrigin: true,
       },
+      // The background jobs dashboard (admin only) is served by the API.
+      '/hangfire': {
+        target: process.env.API_URL ?? 'http://localhost:5050',
+        changeOrigin: true,
+      },
     },
   },
 })

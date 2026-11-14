@@ -39,4 +39,21 @@ public enum TicketEventType
     StatusChanged,
     CategoryChanged,
     ReplyAdded,
+
+    /// <summary>The requester replied by email.</summary>
+    ReplyReceived,
+}
+
+/// <summary>Whether an outbound message has been emailed to the requester.</summary>
+public enum MessageSendStatus
+{
+    /// <summary>Waiting to be sent, or being retried.</summary>
+    Pending,
+    Sent,
+
+    /// <summary>Every attempt failed. An agent can retry.</summary>
+    Failed,
+
+    /// <summary>Stored only, because email was not configured when it was written.</summary>
+    Skipped,
 }

@@ -72,18 +72,18 @@ Outcome: tickets can be listed, filtered, opened, and worked on by hand, using s
 
 Outcome: an email to the shared mailbox becomes a ticket, and an agent's reply reaches the student.
 
-- [ ] 3.1 Register the Entra application with mail read and send application permissions, restricted to the shared mailbox only.
-- [ ] 3.2 Add the Graph client behind an interface, so tests can use a fake mailbox.
-- [ ] 3.3 Set up Hangfire with SQL Server storage and an admin-only dashboard.
-- [ ] 3.4 Add the recurring polling job using delta queries, storing the delta token.
-- [ ] 3.5 Make ingestion idempotent by recording each message's internet message ID.
-- [ ] 3.6 Parse inbound messages: sender, subject, body as text and sanitised HTML, quoted-reply stripping.
-- [ ] 3.7 Match replies to tickets using the conversation ID and reply headers; otherwise create a new ticket.
-- [ ] 3.8 Apply the reply rules: append to an Open ticket, reopen a Resolved one, create a linked ticket for a Closed one.
-- [ ] 3.9 Detect and skip auto-replies, bounces, and the mailbox's own messages, to prevent mail loops.
-- [ ] 3.10 Send agent replies through Graph as replies in the original thread, and record the result on the message.
-- [ ] 3.11 Retry failed sends and show a failed-send state on the ticket.
-- [ ] 3.12 Write tests for threading, the reply rules, and idempotency against the fake mailbox.
+- [ ] 3.1 Register the Entra application with mail read and send application permissions, restricted to the shared mailbox only. **Waiting on the mailbox owner; see "Connecting the mailbox" in the README.** The Graph client is written but has not been run against a real mailbox.
+- [x] 3.2 Add the Graph client behind an interface, so tests can use a fake mailbox.
+- [x] 3.3 Set up Hangfire with SQL Server storage and an admin-only dashboard.
+- [x] 3.4 Add the recurring polling job using delta queries, storing the delta token. The first read starts from now, so mail already in the inbox is left alone.
+- [x] 3.5 Make ingestion idempotent by recording each message's internet message ID.
+- [x] 3.6 Parse inbound messages: sender, subject, body as text and sanitised HTML, quoted-reply stripping.
+- [x] 3.7 Match replies to tickets using the conversation ID and reply headers; otherwise create a new ticket.
+- [x] 3.8 Apply the reply rules: append to an Open ticket, reopen a Resolved one, create a linked ticket for a Closed one.
+- [x] 3.9 Detect and skip auto-replies, bounces, mailing-list posts, and the mailbox's own messages, to prevent mail loops.
+- [x] 3.10 Send agent replies through Graph as replies in the original thread, and record the result on the message.
+- [x] 3.11 Retry failed sends and show a failed-send state on the ticket.
+- [x] 3.12 Write tests for threading, the reply rules, and idempotency against the fake mailbox.
 
 ## Phase 4 — Teams, routing, and assignment
 

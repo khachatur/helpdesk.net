@@ -30,10 +30,14 @@ See [project-scope.md](project-scope.md) for what the system does.
 
 - Use app-only Graph access restricted to the shared support mailbox. The default application permission covers every mailbox in the tenant.
 - Polling with delta queries needs no public endpoint, so it works in local development. Graph change notifications can replace it later if the polling delay matters.
+- All mail access goes through one interface (`IMailbox`), so everything else is tested against an in-memory mailbox.
+- Incoming replies are matched to tickets by the Graph conversation id, then by the In-Reply-To and References headers.
 
 ### Background jobs
 
 - Email ingestion, AI calls, and round-robin assignment run as Hangfire jobs, off the request path, with retries.
+- Hangfire keeps its tables in its own `HangFire` schema and creates them itself; they are not DbUp scripts.
+- An agent reply is stored first and emailed by a job, so a mail outage never loses what the agent wrote. After five failed attempts the reply is marked failed and the agent can retry.
 
 ### Knowledge base search
 

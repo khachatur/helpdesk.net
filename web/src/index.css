@@ -416,3 +416,41 @@ a {
   background: #f0f0f0;
   color: var(--text-muted);
 }
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0f6cbd;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.message .link-button {
+  margin-top: 8px;
+}
+
+.send-state {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.send-state .link-button {
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.send-ok {
+  color: var(--ok);
+}
+
+.send-failed {
+  color: var(--bad);
+}

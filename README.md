@@ -50,6 +50,29 @@ dotnet user-secrets set "Seed:Admin:Password" "<password>" --project src/Helpdes
 The secret is only read while no admin exists. To change the password afterwards, sign in and use
 **Change password**.
 
+### Connecting the mailbox
+
+Email is off by default (`Email:Mode` is `None`): nothing is read, and agent replies are stored but not sent.
+To connect the shared support mailbox:
+
+1. In Microsoft Entra, register an application and add a client secret.
+2. Grant it the Microsoft Graph **application** permissions `Mail.ReadWrite` and `Mail.Send`, with admin consent.
+3. In Exchange Online, restrict the application to the support mailbox only (an application access policy,
+   or RBAC for Applications). Without this the application can read every mailbox in the tenant.
+4. Set the configuration:
+
+   ```powershell
+   dotnet user-secrets set "Email:Mode" "Graph" --project src/Helpdesk.Api
+   dotnet user-secrets set "Email:Mailbox" "support@yourdomain.com" --project src/Helpdesk.Api
+   dotnet user-secrets set "Email:TenantId" "<tenant id>" --project src/Helpdesk.Api
+   dotnet user-secrets set "Email:ClientId" "<application id>" --project src/Helpdesk.Api
+   dotnet user-secrets set "Email:ClientSecret" "<client secret>" --project src/Helpdesk.Api
+   ```
+
+The mailbox is then read once a minute. Only mail that arrives after the first read becomes tickets, so the
+existing inbox is left alone; set `Email:IngestFrom` to an earlier date and time to include older mail.
+Mail polling and reply sending run as Hangfire jobs, visible to admins at `/hangfire`.
+
 ## Running locally
 
 ```powershell

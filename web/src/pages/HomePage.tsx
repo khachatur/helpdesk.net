@@ -27,6 +27,14 @@ export function HomePage() {
         <p role="alert">The API is not reachable. Start it with: dotnet run --project src/Helpdesk.Api</p>
       )}
 
+      <p>
+        Mail polling and reply sending run as background jobs. See them in the{' '}
+        <a href="/hangfire" target="_blank" rel="noreferrer">
+          jobs dashboard
+        </a>
+        .
+      </p>
+
       <Button
         text="Check again"
         type="default"

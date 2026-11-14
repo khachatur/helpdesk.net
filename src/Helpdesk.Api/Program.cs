@@ -1,5 +1,6 @@
 using Helpdesk.Api.Auth;
 using Helpdesk.Api.Health;
+using Helpdesk.Api.Jobs;
 using System.Text.Json.Serialization;
 using Helpdesk.Api.Migrations;
 using Helpdesk.Api.Tickets;
@@ -24,6 +25,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false)));
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHelpdeskAuth(builder.Environment);
+builder.Services.AddHelpdeskBackgroundJobs(builder.Configuration);
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
@@ -65,6 +67,7 @@ app.MapHealthChecks("/api/health", new HealthCheckOptions { ResponseWriter = Hea
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapTicketEndpoints();
+app.UseHelpdeskBackgroundJobs();
 
 app.Run();
 
