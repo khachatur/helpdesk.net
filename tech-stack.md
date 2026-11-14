@@ -42,8 +42,11 @@ See [project-scope.md](project-scope.md) for what the system does.
 ### Knowledge base search
 
 - Retrieval must return specific articles so the `AutoSendAllowed` check can work.
-- Development uses the locally installed SQL Server 2022 Developer edition (default instance, Windows authentication). Its Full-Text Search feature is not installed yet; add it through SQL Server setup before phase 5.
-- Add embedding-based search only if keyword search proves too weak.
+- Development uses the locally installed SQL Server 2022 Developer edition (default instance, Windows authentication). Its Full-Text Search feature was added on 2026-11-14 from the installation media in `C:\SQL2022\Developer_ENU`.
+- Search uses `FREETEXTTABLE`, which takes the question as plain language, matches other forms of a word, and ignores common words. A match in the title counts three times a match in the body.
+- Keyword search cannot tell `signed up` from `sign in`. On the sample set it puts the right article first for 10 of 11 questions and second for the other, which is enough for picking candidates that an agent or the AI then reads. Add embedding-based search only if real content shows this is too weak.
+- The index updates a moment after an article changes, so a new article can take a second or two to become searchable.
+- CI builds its own SQL Server image (`docker/sqlserver`), because the stock image has no Full-Text Search.
 
 ### Authentication
 

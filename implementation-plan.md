@@ -106,12 +106,12 @@ Outcome: every new ticket lands in a team queue and gets an owner. The system is
 
 Outcome: the admin can maintain articles, and the system can find the relevant ones for a question.
 
-- [ ] 5.1 Write the schema for articles (title, body, published flag, `AutoSendAllowed`) with a full-text catalog and index.
-- [ ] 5.2 Add article endpoints: list, create, edit, publish, unpublish.
-- [ ] 5.3 Build the article management screen, with `AutoSendAllowed` editable by the admin only.
-- [ ] 5.4 Implement the search service: turn a question into a full-text query and return ranked published articles.
-- [ ] 5.5 Add a search box to the ticket detail view so agents can look up articles.
-- [ ] 5.6 Load an initial set of articles and check search quality against real past questions.
+- [x] 5.1 Write the schema for articles (title, body, published flag, `AutoSendAllowed`) with a full-text catalog and index.
+- [x] 5.2 Add article endpoints: list, read, create, edit, publish, unpublish, search. Agents can write and publish; articles are never deleted, only unpublished.
+- [x] 5.3 Build the article management screen, with `AutoSendAllowed` editable by the admin only. An agent's change to an approved article's text withdraws the approval.
+- [x] 5.4 Implement the search service: turn a question into a full-text query and return ranked published articles.
+- [x] 5.5 Add a search box to the ticket detail view so agents can look up articles and add one to their reply. It starts from the ticket's subject.
+- [x] 5.6 Load an initial set of articles and check search quality. Done with 11 **sample** articles and the sample tickets' wording, since no real articles or past questions were available: the right article is first for 10 of 11 questions and second for the other. Repeat with real content before go-live.
 
 ## Phase 6 — AI classification and summaries
 

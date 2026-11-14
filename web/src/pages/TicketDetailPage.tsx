@@ -4,8 +4,10 @@ import { SelectBox } from 'devextreme-react/select-box'
 import { TextArea } from 'devextreme-react/text-area'
 import { confirm } from 'devextreme/ui/dialog'
 import notify from 'devextreme/ui/notify'
-import { useState } from 'react'
+import { TextBox } from 'devextreme-react/text-box'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { useArticleSearch } from '../api/articles.ts'
 import { ApiError, errorMessage } from '../api/client.ts'
 import {
   allCategories,
@@ -70,6 +72,13 @@ export function TicketDetailPage() {
 }
 
 function TicketView({ ticket }: { ticket: TicketDetail }) {
+  // The reply text lives here so the knowledge base panel can add an article to it.
+  const [reply, setReply] = useState('')
+
+  function addToReply(text: string) {
+    setReply((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text))
+  }
+
   return (
     <section>
       <p className="breadcrumb">
@@ -89,7 +98,14 @@ function TicketView({ ticket }: { ticket: TicketDetail }) {
           </div>
 
           {ticket.acceptsChanges ? (
-            <ReplyBox ticket={ticket} />
+            <>
+              <ReplyBox ticket={ticket} body={reply} setBody={setReply} />
+              <KnowledgeBasePanel
+                // Start from the ticket's subject, which is usually the question.
+                initialQuestion={ticket.subject.replace(/^(\s*(re|fw|fwd):\s*)+/i, '')}
+                onUse={addToReply}
+              />
+            </>
           ) : (
             <p className="muted">This ticket is closed. It cannot be reopened or replied to.</p>
           )}
@@ -173,9 +189,82 @@ function SendState({ message, ticketId }: { message: TicketMessage; ticketId: nu
   }
 }
 
-function ReplyBox({ ticket }: { ticket: TicketDetail }) {
+function KnowledgeBasePanel({ initialQuestion, onUse }: { initialQuestion: string; onUse: (text: string) => void }) {
+  const [text, setText] = useState(initialQuestion)
+  const [question, setQuestion] = useState(initialQuestion)
+  const [openId, setOpenId] = useState<number | null>(null)
+  const search = useArticleSearch(question)
+  const matches = question.trim() ? (search.data ?? []) : []
+
+  // Wait for a pause in typing before searching.
+  useEffect(() => {
+    if (text === question) return
+    const timer = setTimeout(() => setQuestion(text), 350)
+    return () => clearTimeout(timer)
+  }, [text, question])
+
+  return (
+    <div className="card kb-panel">
+      <h2>Knowledge base</h2>
+      <TextBox
+        stylingMode="outlined"
+        mode="search"
+        placeholder="Describe the question"
+        value={text}
+        onValueChange={setText}
+        valueChangeEvent="input"
+        showClearButton
+        inputAttr={{ 'aria-label': 'Search the knowledge base' }}
+      />
+
+      {search.isError && (
+        <p className="form-error" role="alert">
+          {errorMessage(search.error)}
+        </p>
+      )}
+      {question.trim() && search.isSuccess && matches.length === 0 && (
+        <p className="muted kb-empty">No published article matches. Try other words.</p>
+      )}
+
+      <ul className="kb-results">
+        {matches.map((match) => (
+          <li key={match.id}>
+            <div className="kb-result-header">
+              <button
+                type="button"
+                className="link-button kb-title"
+                aria-expanded={openId === match.id}
+                onClick={() => setOpenId(openId === match.id ? null : match.id)}
+              >
+                {match.title}
+              </button>
+              {match.autoSendAllowed && (
+                <span className="badge badge-status-needshumanreview" title="Approved for auto-send">
+                  Approved
+                </span>
+              )}
+              <Button text="Use in reply" stylingMode="text" onClick={() => onUse(match.body)} />
+            </div>
+            <div className={openId === match.id ? 'kb-body message-text' : 'kb-body muted'}>
+              {openId === match.id ? match.body : match.snippet}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function ReplyBox({
+  ticket,
+  body,
+  setBody,
+}: {
+  ticket: TicketDetail
+  body: string
+  setBody: (body: string) => void
+}) {
   const addReply = useAddReply(ticket.id)
-  const [body, setBody] = useState('')
   const apiError = addReply.error instanceof ApiError ? addReply.error : undefined
 
   function send(resolve: boolean) {

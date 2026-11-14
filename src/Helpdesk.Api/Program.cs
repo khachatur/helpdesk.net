@@ -1,6 +1,7 @@
 using Helpdesk.Api.Auth;
 using Helpdesk.Api.Health;
 using Helpdesk.Api.Jobs;
+using Helpdesk.Api.KnowledgeBase;
 using System.Text.Json.Serialization;
 using Helpdesk.Api.Migrations;
 using Helpdesk.Api.Teams;
@@ -41,6 +42,7 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 
 await app.SeedAdminAsync();
 await app.SeedSampleTicketsAsync();
+await app.SeedSampleArticlesAsync();
 
 // Unhandled exceptions and bare error status codes are returned as RFC 9457 problem details.
 app.UseExceptionHandler();
@@ -69,6 +71,7 @@ app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapTicketEndpoints();
 app.MapTeamEndpoints();
+app.MapArticleEndpoints();
 app.UseHelpdeskBackgroundJobs();
 
 app.Run();

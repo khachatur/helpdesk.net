@@ -16,6 +16,7 @@ AI-powered ticket management for a support mailbox.
 | `src/Helpdesk.Migrations` | DbUp runner and versioned SQL scripts |
 | `tests/Helpdesk.Tests` | xUnit tests |
 | `web` | React + TypeScript app (Vite) |
+| `docker/sqlserver` | SQL Server image with Full-Text Search, used by CI only |
 
 ## Prerequisites
 
@@ -88,7 +89,8 @@ npm --prefix web run dev                          # web app on http://localhost:
 ```
 
 In development the API creates the `Helpdesk` database and applies pending migrations at startup.
-While the tickets table is empty it also adds about 60 sample tickets (`Seed:SampleTickets` in
+While the tickets table is empty it also adds about 60 sample tickets, and while the knowledge base is empty
+11 sample articles for an imaginary online school (`Seed:SampleTickets` and `Seed:SampleArticles` in
 `appsettings.Development.json`).
 The web app proxies `/api` to the API, so the browser only talks to `localhost:5173`.
 
@@ -107,3 +109,5 @@ npm --prefix web run build
 
 Add a new script to `src/Helpdesk.Migrations/Scripts`, named with the next number: `0002_CreateUsers.sql`.
 Scripts run once, in name order. Never edit a script that has already been applied; add a new one.
+Each script runs in a transaction. For the rare statement SQL Server refuses to run in one (a full-text index,
+for example), end the script's name with `_NoTransaction` and make every statement safe to repeat.

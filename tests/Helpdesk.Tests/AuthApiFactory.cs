@@ -57,7 +57,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         connection.Execute("""
             DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState;
             DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets;
-            UPDATE dbo.Teams SET LastAssignedUserId = NULL;
+            DELETE FROM dbo.Articles; UPDATE dbo.Teams SET LastAssignedUserId = NULL;
             DELETE FROM dbo.Users; DELETE FROM dbo.CategoryRoutes; DELETE FROM dbo.Teams;
             INSERT INTO dbo.Teams (Name, IsDefault) VALUES (N'General Support', 1), (N'Technical Support', 0), (N'Finance Support', 0);
             """);
