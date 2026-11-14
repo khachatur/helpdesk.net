@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Helpdesk.Core.Tickets;
+using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Tickets;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -185,6 +186,8 @@ public static class TicketEndpoints
         TicketStore store,
         IOptions<EmailOptions> email,
         IReplyQueue replyQueue,
+        IOptions<AiOptions> ai,
+        IAiJobQueue aiJobs,
         CancellationToken cancellationToken)
     {
         var body = request.Body?.Trim() ?? "";
@@ -208,6 +211,12 @@ public static class TicketEndpoints
         if (result == TicketChangeResult.Ok && send)
         {
             replyQueue.Enqueue(messageId!.Value);
+        }
+
+        // The conversation has a new message, so its summary is out of date.
+        if (result == TicketChangeResult.Ok && ai.Value.IsEnabled)
+        {
+            aiJobs.EnqueueSummary(id);
         }
 
         return result switch

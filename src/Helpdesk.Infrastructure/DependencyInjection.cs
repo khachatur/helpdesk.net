@@ -1,3 +1,4 @@
+using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Data;
 using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Identity;
@@ -24,6 +25,26 @@ public static class DependencyInjection
         services.AddSingleton<TicketStore>();
         services.AddSingleton<TeamStore>();
         services.AddSingleton<ArticleStore>();
+
+        services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));
+        services.AddSingleton<AiRunLog>();
+        services.AddSingleton<EmailClassifier>();
+        services.AddSingleton<TicketClassifier>();
+        services.AddSingleton<TicketSummarizer>();
+        services.TryAddSingleton<IAiJobQueue, NoAiJobQueue>();
+        services.AddSingleton<IAiClient>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<AiOptions>>();
+            if (!options.Value.IsEnabled)
+            {
+                return new NoAiClient();
+            }
+
+            return string.IsNullOrWhiteSpace(options.Value.ApiKey)
+                ? throw new InvalidOperationException(
+                    "Ai:Mode is Anthropic but Ai:ApiKey is not set. Set it with 'dotnet user-secrets set \"Ai:ApiKey\" \"<key>\" --project src/Helpdesk.Api' or the Ai__ApiKey environment variable.")
+                : new AnthropicAiClient(options);
+        });
         services.AddSingleton<EmailHtmlSanitizer>();
 
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));

@@ -1,3 +1,4 @@
+using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Tickets;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,10 +13,13 @@ public sealed class EmailIngestionService(
     EmailStore emailStore,
     TicketStore ticketStore,
     IOptions<EmailOptions> options,
+    IOptions<AiOptions> aiOptions,
+    IAiJobQueue aiJobs,
     TimeProvider timeProvider,
     ILogger<EmailIngestionService> logger)
 {
     private readonly EmailOptions _options = options.Value;
+    private readonly AiOptions _ai = aiOptions.Value;
 
     /// <summary>
     /// Reads everything that arrived since the last call. Safe to repeat: an email that was
@@ -123,6 +127,7 @@ public sealed class EmailIngestionService(
             {
                 var outcome = result == AppendResult.Reopened ? InboundOutcome.ReopenedTicket : InboundOutcome.AppendedToTicket;
                 await emailStore.LogAsync(email, outcome, ticketId, null, cancellationToken);
+                QueueAi(ticketId, classify: false);
                 return outcome;
             }
 
@@ -140,11 +145,30 @@ public sealed class EmailIngestionService(
                 OriginalTicketId: existingTicketId,
                 InternetMessageId: email.InternetMessageId,
                 ProviderMessageId: email.ProviderMessageId,
-                ConversationId: email.ConversationId),
+                ConversationId: email.ConversationId,
+                // With AI on, a brand-new ticket waits for its category before joining a queue.
+                DeferRouting: _ai.IsEnabled),
             cancellationToken);
 
         var created = existingTicketId is null ? InboundOutcome.CreatedTicket : InboundOutcome.CreatedFollowUpTicket;
         await emailStore.LogAsync(email, created, newTicketId, null, cancellationToken);
+        // A follow-up inherited its category from the ticket it follows, so only new tickets are classified.
+        QueueAi(newTicketId, classify: existingTicketId is null);
         return created;
+    }
+
+    private void QueueAi(int ticketId, bool classify)
+    {
+        if (!_ai.IsEnabled)
+        {
+            return;
+        }
+
+        if (classify)
+        {
+            aiJobs.EnqueueClassification(ticketId);
+        }
+
+        aiJobs.EnqueueSummary(ticketId);
     }
 }

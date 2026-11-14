@@ -25,6 +25,10 @@ See [project-scope.md](project-scope.md) for what the system does.
 - `claude-haiku-5-5` for classification and summaries.
 - `claude-sonnet-5-5` for drafting replies.
 - The classifier returns the category, confidence, and source article ID as structured data, so the auto-send gate (`AutoSendAllowed`) is enforced in code and not by the model.
+- All AI access goes through one interface (`IAiClient`), so everything else is tested against a fake.
+- Email text reaches the model only as data: it is wrapped in delimiters the fixed instructions name, any copy of those delimiters inside the email is defused first, and nothing from an email is ever put in the instructions. The answer is validated in code before it is used.
+- The model's confidence is its own estimate and is not calibrated. It decides only whether a category is applied automatically; the threshold should be tuned with the evaluation tool on real emails.
+- Model ids, the confidence threshold, the timeout and the retry count are configuration (`Ai` section).
 
 ### Email
 

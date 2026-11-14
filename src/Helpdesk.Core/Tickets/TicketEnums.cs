@@ -63,3 +63,15 @@ public enum MessageSendStatus
     /// <summary>Stored only, because email was not configured when it was written.</summary>
     Skipped,
 }
+/// <summary>Where a ticket is in AI classification.</summary>
+public enum ClassificationStatus
+{
+    /// <summary>Waiting for the AI. The ticket is not in a team queue yet.</summary>
+    Pending,
+
+    /// <summary>The AI answered, confidently or not.</summary>
+    Done,
+
+    /// <summary>The AI could not classify it, and it went to the default team.</summary>
+    Failed,
+}

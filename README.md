@@ -15,6 +15,8 @@ AI-powered ticket management for a support mailbox.
 | `src/Helpdesk.Infrastructure` | Data access (Dapper) and external services |
 | `src/Helpdesk.Migrations` | DbUp runner and versioned SQL scripts |
 | `tests/Helpdesk.Tests` | xUnit tests |
+| `tools/Helpdesk.Eval` | Console tool that measures classification accuracy against the real model |
+| `eval` | Labelled sample emails for that tool |
 | `web` | React + TypeScript app (Vite) |
 | `docker/sqlserver` | SQL Server image with Full-Text Search, used by CI only |
 
@@ -80,6 +82,29 @@ To connect the shared support mailbox:
 The mailbox is then read once a minute. Only mail that arrives after the first read becomes tickets, so the
 existing inbox is left alone; set `Email:IngestFrom` to an earlier date and time to include older mail.
 Mail polling and reply sending run as Hangfire jobs, visible to admins at `/hangfire`.
+
+### Turning on AI
+
+AI is off by default (`Ai:Mode` is `None`): tickets are routed without classification and get no summary.
+To turn it on, get an Anthropic API key and set:
+
+```powershell
+dotnet user-secrets set "Ai:Mode" "Anthropic" --project src/Helpdesk.Api
+dotnet user-secrets set "Ai:ApiKey" "<key>" --project src/Helpdesk.Api
+```
+
+A new email then waits outside every team queue for a few seconds while it is classified. When the AI is at
+least 70% sure (`Ai:ConfidenceThreshold`), the ticket gets that category and goes to its team; otherwise it
+goes to the default team unclassified. If the AI fails, the ticket is routed without a category, and a job
+that runs every minute routes any ticket that has waited ten minutes. Tickets with a longer conversation also
+get a short summary. Every call is recorded in the `AiRuns` table with its tokens, duration and outcome.
+
+To measure classification accuracy against the real model (each run calls the API once per sample):
+
+```powershell
+$env:ANTHROPIC_API_KEY = "<key>"
+dotnet run --project tools/Helpdesk.Eval -- eval/classification-samples.json --min-accuracy 0.9
+```
 
 ## Running locally
 

@@ -91,6 +91,18 @@ function TicketView({ ticket }: { ticket: TicketDetail }) {
 
       <div className="ticket-layout">
         <div className="ticket-main">
+          {ticket.summary && (
+            <div className="card summary-card">
+              <h2>
+                Summary <span className="ai-tag">AI</span>
+              </h2>
+              <p>{ticket.summary}</p>
+              {!ticket.summaryIsCurrent && (
+                <p className="muted summary-stale">Written before the latest message. An update is on its way.</p>
+              )}
+            </div>
+          )}
+
           <div className="conversation">
             {ticket.messages.map((message, index) => (
               <Message key={message.id} message={message} ticketId={ticket.id} isFirst={index === 0} />
@@ -385,6 +397,7 @@ function DetailsPanel({ ticket }: { ticket: TicketDetail }) {
           ) : (
             <CategoryLabel category={ticket.category} />
           )}
+          <AiCategoryNote ticket={ticket} />
         </dd>
 
         <dt>Created</dt>
@@ -429,6 +442,43 @@ function DetailsPanel({ ticket }: { ticket: TicketDetail }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Says what the AI made of the ticket's category, so an agent knows where the category came from. */
+function AiCategoryNote({ ticket }: { ticket: TicketDetail }) {
+  if (ticket.classificationStatus === 'Pending') {
+    return <div className="field-hint">The AI is classifying this ticket. It joins a team queue when that is done.</div>
+  }
+
+  if (ticket.classificationStatus === 'Failed') {
+    return <div className="field-hint">The AI could not classify this ticket. Please choose a category.</div>
+  }
+
+  if (ticket.classificationStatus !== 'Done') return null
+
+  if (!ticket.aiCategory) {
+    return <div className="field-hint">The AI found this fits no category. Please choose one if it does.</div>
+  }
+
+  const confidence = ticket.aiConfidence === null ? '' : ` (${Math.round(ticket.aiConfidence * 100)}% sure)`
+  const suggestion = categoryLabels[ticket.aiCategory]
+
+  if (ticket.category === null) {
+    return (
+      <div className="field-hint">
+        The AI suggests {suggestion}
+        {confidence}, which is not sure enough to apply. Please choose a category.
+      </div>
+    )
+  }
+
+  return (
+    <div className="field-hint">
+      {ticket.category === ticket.aiCategory
+        ? `Set by the AI${confidence}.`
+        : `Changed by an agent. The AI had chosen ${suggestion}${confidence}.`}
     </div>
   )
 }

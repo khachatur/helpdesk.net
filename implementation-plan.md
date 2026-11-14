@@ -117,16 +117,16 @@ Outcome: the admin can maintain articles, and the system can find the relevant o
 
 Outcome: new tickets are categorised, routed, and summarised automatically; agents can correct the result.
 
-- [ ] 6.1 Add the Anthropic client behind an interface, with timeouts, retries, and configuration for model IDs.
-- [ ] 6.2 Add an AI run log table (ticket, purpose, model, tokens, latency, outcome).
-- [ ] 6.3 Implement classification as a Hangfire job returning structured output: category and confidence.
-- [ ] 6.4 Pass email content as clearly delimited data in the prompt, and validate the output in code.
-- [ ] 6.5 Route on the classification; send low-confidence results to General Support.
-- [ ] 6.6 Fall back cleanly when the AI is unavailable: the ticket is still created, routed to General Support, and marked unclassified.
-- [ ] 6.7 Generate a ticket summary, refreshed when new messages arrive, and show it on the detail view.
-- [ ] 6.8 Record agent category overrides so accuracy can be measured.
-- [ ] 6.9 Build an evaluation set of labelled sample emails and a script that reports classification accuracy.
-- [ ] 6.10 Write tests for the routing and fallback paths using a fake AI client.
+- [x] 6.1 Add the Anthropic client behind an interface, with timeouts, retries, and configuration for model IDs.
+- [x] 6.2 Add an AI run log table (ticket, purpose, model, tokens, latency, outcome).
+- [x] 6.3 Implement classification as a Hangfire job returning structured output: category and confidence. A new ticket waits outside every queue until it is classified, so it is routed once.
+- [x] 6.4 Pass email content as clearly delimited data in the prompt, and validate the output in code.
+- [x] 6.5 Route on the classification; send low-confidence results to General Support.
+- [x] 6.6 Fall back cleanly when the AI is unavailable: the ticket is still created, routed to General Support, and marked unclassified. A once-a-minute job also routes any ticket that has waited ten minutes for classification.
+- [x] 6.7 Generate a ticket summary, refreshed when new messages arrive, and show it on the detail view.
+- [x] 6.8 Record agent category overrides so accuracy can be measured: what the AI said is stored apart from the ticket's category and is never overwritten.
+- [x] 6.9 Build an evaluation set of labelled sample emails and a script that reports classification accuracy (`eval/classification-samples.json`, `tools/Helpdesk.Eval`). **Not yet run against the real model: no API key was available.** The 36 samples are invented; replace them with real, labelled emails.
+- [x] 6.10 Write tests for the routing and fallback paths using a fake AI client.
 
 ## Phase 7 — AI drafts and auto-send
 

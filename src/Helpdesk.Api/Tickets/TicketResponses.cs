@@ -50,6 +50,14 @@ public sealed record TicketDetailResponse(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? ResolvedAt,
     DateTimeOffset? ClosedAt,
+    // Null when AI classification was never requested for this ticket.
+    ClassificationStatus? ClassificationStatus,
+    // What the AI said the category is, whether or not it was applied.
+    TicketCategory? AiCategory,
+    decimal? AiConfidence,
+    string? Summary,
+    // False when messages have arrived since the summary was written.
+    bool SummaryIsCurrent,
     // What the signed-in agent may do next, so the client does not repeat the rules.
     IReadOnlyList<TicketStatus> AllowedStatuses,
     bool AcceptsChanges,
@@ -72,6 +80,11 @@ public sealed record TicketDetailResponse(
         ticket.UpdatedAt,
         ticket.ResolvedAt,
         ticket.ClosedAt,
+        ticket.ClassificationStatus,
+        ticket.AiCategory,
+        ticket.AiConfidence,
+        ticket.Summary,
+        ticket.SummaryMessageCount == ticket.Messages.Count,
         TicketStatusRules.AgentTargets(ticket.Status),
         TicketStatusRules.AcceptsChanges(ticket.Status),
         ticket.Messages.Select(message => TicketMessageResponse.From(message, sanitizer)),

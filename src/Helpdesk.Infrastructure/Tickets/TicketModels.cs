@@ -23,6 +23,20 @@ public sealed class TicketDetail : TicketSummary
 {
     public DateTimeOffset? ResolvedAt { get; init; }
     public DateTimeOffset? ClosedAt { get; init; }
+
+    /// <summary>Null when classification was never requested for this ticket.</summary>
+    public ClassificationStatus? ClassificationStatus { get; init; }
+
+    /// <summary>What the AI said the category is, whether or not it was applied.</summary>
+    public TicketCategory? AiCategory { get; init; }
+
+    public decimal? AiConfidence { get; init; }
+    public string? Summary { get; init; }
+
+    /// <summary>How many messages the summary covers.</summary>
+    public int? SummaryMessageCount { get; init; }
+
+    public DateTimeOffset? SummaryUpdatedAt { get; init; }
     public IReadOnlyList<TicketMessage> Messages { get; set; } = [];
     public IReadOnlyList<TicketEvent> Events { get; set; } = [];
 }
@@ -71,7 +85,9 @@ public sealed record NewTicket(
     int? OriginalTicketId = null,
     string? InternetMessageId = null,
     string? ProviderMessageId = null,
-    string? ConversationId = null);
+    string? ConversationId = null,
+    // Leave the ticket out of any team queue until the AI has classified it.
+    bool DeferRouting = false);
 
 public enum TicketSort
 {

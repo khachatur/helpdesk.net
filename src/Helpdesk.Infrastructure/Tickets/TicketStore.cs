@@ -104,7 +104,8 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
     public async Task<TicketDetail?> GetAsync(int id, CancellationToken cancellationToken)
     {
         const string sql = $"""
-            SELECT {SummaryColumns}, t.ResolvedAt, t.ClosedAt
+            SELECT {SummaryColumns}, t.ResolvedAt, t.ClosedAt, t.ClassificationStatus, t.AiCategory, t.AiConfidence,
+                   t.Summary, t.SummaryMessageCount, t.SummaryUpdatedAt
             FROM dbo.Tickets t
             LEFT JOIN dbo.Users assignee ON assignee.Id = t.AssigneeId
             LEFT JOIN dbo.Teams team ON team.Id = t.TeamId
@@ -160,13 +161,20 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
             : null;
 
         var category = ticket.Category ?? original?.Category;
-        var teamId = await ResolveTeamAsync(connection, transaction, category, cancellationToken);
+        // A ticket waiting for the AI is not put in a queue yet: it is routed once its category is known,
+        // so it is not handed to one team and then moved to another a few seconds later.
+        var awaitsClassification = ticket.DeferRouting && category is null && original is null;
+        var teamId = awaitsClassification ? null : await ResolveTeamAsync(connection, transaction, category, cancellationToken);
 
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             """
-            INSERT INTO dbo.Tickets (Subject, RequesterEmail, RequesterName, Status, Category, TeamId, OriginalTicketId, CreatedAt, UpdatedAt)
+            INSERT INTO dbo.Tickets
+                (Subject, RequesterEmail, RequesterName, Status, Category, TeamId, OriginalTicketId, CreatedAt, UpdatedAt,
+                 ClassificationStatus, ClassificationRequestedAt)
             OUTPUT INSERTED.Id
-            VALUES (@Subject, @RequesterEmail, @RequesterName, @Status, @Category, @teamId, @OriginalTicketId, @receivedAt, @receivedAt)
+            VALUES
+                (@Subject, @RequesterEmail, @RequesterName, @Status, @Category, @teamId, @OriginalTicketId, @receivedAt, @receivedAt,
+                 @ClassificationStatus, @ClassificationRequestedAt)
             """,
             new
             {
@@ -176,6 +184,8 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
                 Status = TicketStatus.Open.ToString(),
                 Category = category?.ToString(),
                 teamId,
+                ClassificationStatus = awaitsClassification ? Core.Tickets.ClassificationStatus.Pending.ToString() : null,
+                ClassificationRequestedAt = awaitsClassification ? timeProvider.GetUtcNow() : (DateTimeOffset?)null,
                 ticket.OriginalTicketId,
                 receivedAt,
             },
@@ -215,7 +225,7 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
         {
             await SetAssigneeAsync(connection, transaction, id, null, previousOwner, receivedAt, cancellationToken);
         }
-        else
+        else if (!awaitsClassification)
         {
             await AssignNextAsync(connection, transaction, id, teamId, null, receivedAt, cancellationToken);
         }

@@ -3,6 +3,7 @@ using Hangfire.Dashboard;
 using Helpdesk.Api.Auth;
 using Helpdesk.Core.Users;
 using Helpdesk.Infrastructure;
+using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Email;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +17,7 @@ public static class BackgroundJobs
 {
     public const string DashboardPath = "/hangfire";
     private const string PollMailboxJobId = "poll-mailbox";
+    private const string RouteStuckTicketsJobId = "route-stuck-tickets";
 
     public static bool AreEnabled(IConfiguration configuration) =>
         configuration.GetValue("BackgroundJobs:Enabled", false);
@@ -35,6 +37,7 @@ public static class BackgroundJobs
         services.AddHangfireServer();
 
         services.AddSingleton<IReplyQueue, HangfireReplyQueue>();
+        services.AddSingleton<IAiJobQueue, HangfireAiJobQueue>();
         return services;
     }
 
@@ -62,6 +65,15 @@ public static class BackgroundJobs
         else
         {
             recurringJobs.RemoveIfExists(PollMailboxJobId);
+        }
+
+        if (app.Services.GetRequiredService<IOptions<AiOptions>>().Value.IsEnabled)
+        {
+            recurringJobs.AddOrUpdate<RouteStuckTicketsJob>(RouteStuckTicketsJobId, job => job.RunAsync(CancellationToken.None), Cron.Minutely());
+        }
+        else
+        {
+            recurringJobs.RemoveIfExists(RouteStuckTicketsJobId);
         }
     }
 
@@ -92,4 +104,35 @@ public sealed class HangfireReplyQueue(IBackgroundJobClient jobs) : IReplyQueue
 {
     public void Enqueue(long messageId) =>
         jobs.Enqueue<SendReplyJob>(job => job.RunAsync(messageId, CancellationToken.None));
+}
+
+/// <summary>Classifies one new ticket. Hangfire retries it while attempts remain; the last failure routes the ticket anyway.</summary>
+public sealed class ClassifyTicketJob(TicketClassifier classifier)
+{
+    [AutomaticRetry(Attempts = TicketClassifier.MaxAttempts)]
+    public Task RunAsync(int ticketId, CancellationToken cancellationToken) => classifier.ClassifyAsync(ticketId, cancellationToken);
+}
+
+/// <summary>Writes or refreshes one ticket's summary. A summary is a convenience, so it is tried a few times and then given up.</summary>
+public sealed class SummarizeTicketJob(TicketSummarizer summarizer)
+{
+    [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
+    public Task RunAsync(int ticketId, CancellationToken cancellationToken) => summarizer.SummarizeAsync(ticketId, cancellationToken);
+}
+
+/// <summary>Once a minute, routes tickets whose classification never completed, so none is left outside every queue.</summary>
+public sealed class RouteStuckTicketsJob(TicketClassifier classifier)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 5)]
+    [AutomaticRetry(Attempts = 0)]
+    public Task RunAsync(CancellationToken cancellationToken) => classifier.RouteStuckTicketsAsync(cancellationToken);
+}
+
+public sealed class HangfireAiJobQueue(IBackgroundJobClient jobs) : IAiJobQueue
+{
+    public void EnqueueClassification(int ticketId) =>
+        jobs.Enqueue<ClassifyTicketJob>(job => job.RunAsync(ticketId, CancellationToken.None));
+
+    public void EnqueueSummary(int ticketId) =>
+        jobs.Enqueue<SummarizeTicketJob>(job => job.RunAsync(ticketId, CancellationToken.None));
 }

@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Dapper;
 using Helpdesk.Core.Tickets;
+using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Tickets;
 using Helpdesk.Migrations;
@@ -55,7 +56,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
 
         using var connection = new SqlConnection(ConnectionString);
         connection.Execute("""
-            DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState;
+            DELETE FROM dbo.AiRuns; DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState;
             DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets;
             DELETE FROM dbo.Articles; UPDATE dbo.Teams SET LastAssignedUserId = NULL;
             DELETE FROM dbo.Users; DELETE FROM dbo.CategoryRoutes; DELETE FROM dbo.Teams;
@@ -77,6 +78,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("BackgroundJobs:Enabled", "false");
         builder.UseSetting("Email:Mode", "Graph");
         builder.UseSetting("Email:Mailbox", FakeMailbox.Address);
+        builder.UseSetting("Ai:Mode", "Anthropic");
 
         // Re-check the security stamp on every request, so tests see a deactivation immediately
         // instead of after the production one-minute interval.
@@ -85,6 +87,8 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
             services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
             services.AddSingleton<IMailbox>(Mailbox);
             services.AddSingleton<IReplyQueue>(ReplyQueue);
+            services.AddSingleton<IAiClient>(Ai);
+            services.AddSingleton<IAiJobQueue>(AiJobs);
         });
     }
 
@@ -105,6 +109,10 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
     public FakeMailbox Mailbox { get; } = new();
 
     public RecordingReplyQueue ReplyQueue { get; } = new();
+
+    public FakeAiClient Ai { get; } = new();
+
+    public RecordingAiJobQueue AiJobs { get; } = new();
 
     public TicketStore Tickets => Services.GetRequiredService<TicketStore>();
 

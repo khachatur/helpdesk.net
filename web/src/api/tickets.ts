@@ -71,6 +71,15 @@ export interface TicketDetail extends TicketSummary {
   originalTicketId: number | null
   resolvedAt: string | null
   closedAt: string | null
+  /** Pending while the AI is classifying a new ticket. Null when classification was never requested. */
+  classificationStatus: 'Pending' | 'Done' | 'Failed' | null
+  /** What the AI said the category is, whether or not it was applied. */
+  aiCategory: TicketCategory | null
+  /** From 0 to 1. */
+  aiConfidence: number | null
+  summary: string | null
+  /** False when messages have arrived since the summary was written. */
+  summaryIsCurrent: boolean
   /** The statuses the signed-in agent may move this ticket to. */
   allowedStatuses: TicketStatus[]
   /** False once the ticket is closed. */
@@ -140,8 +149,19 @@ export function useTicket(id: number) {
     queryFn: ({ signal }) => api<TicketDetail>(`/tickets/${id}`, { signal }),
     enabled: Number.isInteger(id) && id > 0,
     // While a reply is waiting to be emailed, check back so its status updates on screen.
-    refetchInterval: (query) =>
-      query.state.data?.messages.some((message) => message.sendStatus === 'Pending') ? 4000 : false,
+    refetchInterval: (query) => {
+      const ticket = query.state.data
+      if (!ticket) return false
+      // While something is still in progress in the background, check back so it appears on screen.
+      const waiting =
+        ticket.messages.some((message) => message.sendStatus === 'Pending') ||
+        ticket.classificationStatus === 'Pending' ||
+        // A summary update normally lands within seconds. If it has not after two minutes, stop asking.
+        (ticket.summary !== null &&
+          !ticket.summaryIsCurrent &&
+          Date.now() - Date.parse(ticket.updatedAt) < 120_000)
+      return waiting ? 4000 : false
+    },
   })
 }
 
