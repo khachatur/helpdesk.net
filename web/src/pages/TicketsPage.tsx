@@ -5,6 +5,7 @@ import CustomStore from 'devextreme/data/custom_store'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { errorMessage } from '../api/client.ts'
+import { useTeams } from '../api/teams.ts'
 import {
   allCategories,
   allStatuses,
@@ -12,6 +13,7 @@ import {
   fetchTickets,
   statusLabels,
   type CategoryFilter,
+  type OwnerFilter,
   type StatusFilter,
   type TicketFilters,
   type TicketSortField,
@@ -32,6 +34,12 @@ const categoryOptions: { value: CategoryFilter; text: string }[] = [
   { value: 'unclassified', text: 'Unclassified' },
 ]
 
+const ownerOptions: { value: OwnerFilter; text: string }[] = [
+  { value: 'anyone', text: 'Any owner' },
+  { value: 'me', text: 'My tickets' },
+  { value: 'unassigned', text: 'Unassigned' },
+]
+
 const sortFields: TicketSortField[] = ['id', 'subject', 'requesterEmail', 'status', 'category', 'createdAt', 'updatedAt']
 
 /** Filters live in the URL, so a filtered list can be bookmarked and survives going back from a ticket. */
@@ -40,7 +48,11 @@ function useTicketFilters(): [TicketFilters, (changes: Partial<TicketFilters>) =
 
   const status = params.get('status')
   const category = params.get('category')
+  const owner = params.get('owner')
+  const team = Number(params.get('team'))
   const filters: TicketFilters = {
+    team: Number.isInteger(team) && team > 0 ? team : null,
+    owner: ownerOptions.some((option) => option.value === owner) ? (owner as OwnerFilter) : 'anyone',
     status: statusOptions.some((option) => option.value === status) ? (status as StatusFilter) : 'active',
     category: categoryOptions.some((option) => option.value === category) ? (category as CategoryFilter) : 'all',
     search: params.get('q') ?? '',
@@ -51,6 +63,8 @@ function useTicketFilters(): [TicketFilters, (changes: Partial<TicketFilters>) =
     const nextParams = new URLSearchParams()
     if (next.status !== 'active') nextParams.set('status', next.status)
     if (next.category !== 'all') nextParams.set('category', next.category)
+    if (next.team !== null) nextParams.set('team', String(next.team))
+    if (next.owner !== 'anyone') nextParams.set('owner', next.owner)
     if (next.search) nextParams.set('q', next.search)
     setParams(nextParams, { replace: true })
   }
@@ -60,7 +74,9 @@ function useTicketFilters(): [TicketFilters, (changes: Partial<TicketFilters>) =
 
 export function TicketsPage() {
   const [filters, updateFilters] = useTicketFilters()
-  const { status, category, search } = filters
+  const { status, category, team, owner, search } = filters
+  const teams = useTeams()
+  const teamOptions = [{ id: 0, name: 'All teams' }, ...(teams.data ?? [])]
   const [searchText, setSearchText] = useState(search)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -84,7 +100,7 @@ export function TicketsPage() {
 
           try {
             const page = await fetchTickets(
-              { status, category, search },
+              { status, category, team, owner, search },
               { skip: options.skip ?? 0, take: options.take ?? 25, sort: field, desc: sortBy?.desc },
             )
             setLoadError(null)
@@ -95,7 +111,7 @@ export function TicketsPage() {
           }
         },
       }),
-    [status, category, search],
+    [status, category, team, owner, search],
   )
 
   return (
@@ -126,6 +142,28 @@ export function TicketsPage() {
           displayExpr="text"
           value={category}
           onValueChange={(value: CategoryFilter) => updateFilters({ category: value })}
+        />
+        <SelectBox
+          label="Team"
+          labelMode="outside"
+          stylingMode="outlined"
+          width={200}
+          items={teamOptions}
+          valueExpr="id"
+          displayExpr="name"
+          value={team ?? 0}
+          onValueChange={(value: number) => updateFilters({ team: value === 0 ? null : value })}
+        />
+        <SelectBox
+          label="Owner"
+          labelMode="outside"
+          stylingMode="outlined"
+          width={160}
+          items={ownerOptions}
+          valueExpr="value"
+          displayExpr="text"
+          value={owner}
+          onValueChange={(value: OwnerFilter) => updateFilters({ owner: value })}
         />
         <TextBox
           label="Search"
@@ -186,12 +224,19 @@ export function TicketsPage() {
           cellRender={({ data }: { data: TicketSummary }) => <CategoryLabel category={data.category} />}
         />
         <Column
+          dataField="teamName"
+          caption="Team"
+          width={160}
+          allowSorting={false}
+          cellRender={({ data }: { data: TicketSummary }) => data.teamName ?? <span className="muted">None</span>}
+        />
+        <Column
           dataField="assigneeName"
           caption="Owner"
           width={150}
           allowSorting={false}
           cellRender={({ data }: { data: TicketSummary }) =>
-            data.assigneeName ?? <span className="muted">Unassigned</span>
+            data.assigneeName ?? <span className="send-failed">Unassigned</span>
           }
         />
         <Column

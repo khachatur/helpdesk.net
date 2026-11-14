@@ -9,11 +9,11 @@ namespace Helpdesk.Infrastructure.Tickets;
 /// Reads and writes tickets. Every change runs in one transaction that locks the ticket row,
 /// checks the status rules, applies the change, and records a history event.
 /// </summary>
-public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProvider timeProvider)
+public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, TimeProvider timeProvider)
 {
     private const string SummaryColumns = """
         t.Id, t.Subject, t.RequesterEmail, t.RequesterName, t.Status, t.Category, t.AssigneeId,
-        assignee.DisplayName AS AssigneeName, t.OriginalTicketId, t.CreatedAt, t.UpdatedAt
+        assignee.DisplayName AS AssigneeName, t.TeamId, team.Name AS TeamName, t.OriginalTicketId, t.CreatedAt, t.UpdatedAt
         """;
 
     public async Task<TicketPage> ListAsync(TicketListQuery query, CancellationToken cancellationToken)
@@ -47,6 +47,12 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
             parameters.Add("assigneeId", assigneeId);
         }
 
+        if (query.TeamId is { } teamId)
+        {
+            conditions.Add("t.TeamId = @teamId");
+            parameters.Add("teamId", teamId);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             conditions.Add("""
@@ -78,6 +84,7 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
             SELECT {SummaryColumns}
             FROM dbo.Tickets t
             LEFT JOIN dbo.Users assignee ON assignee.Id = t.AssigneeId
+            LEFT JOIN dbo.Teams team ON team.Id = t.TeamId
             {where}
             ORDER BY {sortColumn} {direction}, t.Id DESC
             OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;
@@ -100,6 +107,7 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
             SELECT {SummaryColumns}, t.ResolvedAt, t.ClosedAt
             FROM dbo.Tickets t
             LEFT JOIN dbo.Users assignee ON assignee.Id = t.AssigneeId
+            LEFT JOIN dbo.Teams team ON team.Id = t.TeamId
             WHERE t.Id = @id;
 
             SELECT m.Id, m.Direction, m.SenderEmail, m.SenderName, m.AuthorUserId,
@@ -131,7 +139,11 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
         return ticket;
     }
 
-    /// <summary>Creates an Open ticket with its first inbound message. Returns the ticket number.</summary>
+    /// <summary>
+    /// Creates an Open ticket with its first inbound message, puts it in the team queue for its category,
+    /// and gives it an owner. A follow-up to a closed ticket takes that ticket's category and, when they
+    /// can still own it, its owner. Returns the ticket number.
+    /// </summary>
     public async Task<int> CreateAsync(NewTicket ticket, CancellationToken cancellationToken)
     {
         var receivedAt = ticket.ReceivedAt ?? timeProvider.GetUtcNow();
@@ -139,11 +151,22 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
         await using var connection = await connectionFactory.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
+        var original = ticket.OriginalTicketId is { } originalId
+            ? await connection.QuerySingleOrDefaultAsync<LockedTicket>(new CommandDefinition(
+                "SELECT Status, Category, TeamId, AssigneeId FROM dbo.Tickets WHERE Id = @originalId",
+                new { originalId },
+                transaction,
+                cancellationToken: cancellationToken))
+            : null;
+
+        var category = ticket.Category ?? original?.Category;
+        var teamId = await ResolveTeamAsync(connection, transaction, category, cancellationToken);
+
         var id = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
             """
-            INSERT INTO dbo.Tickets (Subject, RequesterEmail, RequesterName, Status, Category, OriginalTicketId, CreatedAt, UpdatedAt)
+            INSERT INTO dbo.Tickets (Subject, RequesterEmail, RequesterName, Status, Category, TeamId, OriginalTicketId, CreatedAt, UpdatedAt)
             OUTPUT INSERTED.Id
-            VALUES (@Subject, @RequesterEmail, @RequesterName, @Status, @Category, @OriginalTicketId, @receivedAt, @receivedAt)
+            VALUES (@Subject, @RequesterEmail, @RequesterName, @Status, @Category, @teamId, @OriginalTicketId, @receivedAt, @receivedAt)
             """,
             new
             {
@@ -151,7 +174,8 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
                 ticket.RequesterEmail,
                 ticket.RequesterName,
                 Status = TicketStatus.Open.ToString(),
-                Category = ticket.Category?.ToString(),
+                Category = category?.ToString(),
+                teamId,
                 ticket.OriginalTicketId,
                 receivedAt,
             },
@@ -184,6 +208,17 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
             cancellationToken: cancellationToken));
 
         await AddEventAsync(connection, transaction, id, TicketEventType.Created, null, null, null, receivedAt, cancellationToken);
+
+        // The person who handled the original ticket knows the case, so a follow-up goes back to them.
+        if (original?.AssigneeId is { } previousOwner
+            && await CanOwnAsync(connection, transaction, previousOwner, teamId, cancellationToken))
+        {
+            await SetAssigneeAsync(connection, transaction, id, null, previousOwner, receivedAt, cancellationToken);
+        }
+        else
+        {
+            await AssignNextAsync(connection, transaction, id, teamId, null, receivedAt, cancellationToken);
+        }
 
         await transaction.CommitAsync(cancellationToken);
         return id;
@@ -250,6 +285,13 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
         await AddEventAsync(
             connection, transaction, id, TicketEventType.CategoryChanged, actorId,
             current.Category?.ToString(), category.ToString(), now, cancellationToken);
+
+        // A new category can mean a different team's queue, and then a new owner from that team.
+        var newTeam = await ResolveTeamAsync(connection, transaction, category, cancellationToken);
+        if (newTeam != current.TeamId)
+        {
+            await MoveToTeamAsync(connection, transaction, id, current.TeamId, newTeam, current.AssigneeId, now, cancellationToken);
+        }
 
         await transaction.CommitAsync(cancellationToken);
         return TicketChangeResult.Ok;
@@ -401,6 +443,15 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
                 cancellationToken: cancellationToken));
         }
 
+        // A reopened ticket goes back to its previous owner. If they have left or been deactivated
+        // since, it goes to the next member of the team instead.
+        if (newStatus != current.Status
+            && (current.AssigneeId is not { } owner
+                || !await CanOwnAsync(connection, transaction, owner, current.TeamId, cancellationToken)))
+        {
+            await AssignNextAsync(connection, transaction, id, current.TeamId, current.AssigneeId, now, cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
         return newStatus != current.Status ? AppendResult.Reopened : AppendResult.Appended;
     }
@@ -485,7 +536,7 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
     private static Task<LockedTicket?> LockAsync(
         DbConnection connection, DbTransaction transaction, int id, CancellationToken cancellationToken) =>
         connection.QuerySingleOrDefaultAsync<LockedTicket>(new CommandDefinition(
-            "SELECT Status, Category FROM dbo.Tickets WITH (UPDLOCK, ROWLOCK) WHERE Id = @id",
+            "SELECT Status, Category, TeamId, AssigneeId FROM dbo.Tickets WITH (UPDLOCK, ROWLOCK) WHERE Id = @id",
             new { id },
             transaction,
             cancellationToken: cancellationToken));
@@ -545,5 +596,7 @@ public sealed class TicketStore(IDbConnectionFactory connectionFactory, TimeProv
     {
         public TicketStatus Status { get; init; }
         public TicketCategory? Category { get; init; }
+        public int? TeamId { get; init; }
+        public Guid? AssigneeId { get; init; }
     }
 }

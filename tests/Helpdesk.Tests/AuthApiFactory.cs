@@ -27,12 +27,41 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         Environment.GetEnvironmentVariable("HELPDESK_TEST_CONNECTION")
         ?? "Server=localhost;Database=Helpdesk_Test;Integrated Security=True;TrustServerCertificate=True";
 
+    private const string SeedRoutesSql = """
+        DELETE FROM dbo.CategoryRoutes;
+        UPDATE dbo.Teams SET IsDefault = 0 WHERE IsDefault = 1 AND Name <> N'General Support';
+        UPDATE dbo.Teams SET IsDefault = 1 WHERE Name = N'General Support' AND IsDefault = 0;
+        INSERT INTO dbo.CategoryRoutes (Category, TeamId)
+        SELECT route.Category, team.Id
+        FROM (VALUES (N'GeneralQuestion', N'General Support'), (N'TechnicalQuestion', N'Technical Support'),
+                     (N'RefundRequest', N'Finance Support')) AS route (Category, TeamName)
+        JOIN dbo.Teams team ON team.Name = route.TeamName;
+        """;
+
+    /// <summary>
+    /// Puts routing back to the three seeded teams and takes every user out of their team, so tests
+    /// that rearrange teams do not change who gets the tickets other tests create.
+    /// </summary>
+    public void ResetRouting()
+    {
+        using var connection = new SqlConnection(ConnectionString);
+        connection.Execute("UPDATE dbo.Users SET TeamId = NULL;");
+        connection.Execute(SeedRoutesSql);
+    }
+
     public AuthApiFactory()
     {
         DatabaseMigrator.Migrate(ConnectionString);
 
         using var connection = new SqlConnection(ConnectionString);
-        connection.Execute("DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState; DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets; DELETE FROM dbo.Users;");
+        connection.Execute("""
+            DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState;
+            DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets;
+            UPDATE dbo.Teams SET LastAssignedUserId = NULL;
+            DELETE FROM dbo.Users; DELETE FROM dbo.CategoryRoutes; DELETE FROM dbo.Teams;
+            INSERT INTO dbo.Teams (Name, IsDefault) VALUES (N'General Support', 1), (N'Technical Support', 0), (N'Finance Support', 0);
+            """);
+        connection.Execute(SeedRoutesSql);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -91,12 +120,12 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
             CancellationToken.None);
 
     /// <summary>Creates an active agent with a unique email and returns its credentials and id.</summary>
-    public async Task<(Guid Id, string Email, string Password)> CreateAgentAsync(HttpClient admin)
+    public async Task<(Guid Id, string Email, string Password)> CreateAgentAsync(HttpClient admin, int? teamId = null)
     {
         var email = $"agent-{Guid.NewGuid():N}@helpdesk.test";
         const string password = "Agent-Test-Pass-1";
 
-        var response = await admin.PostAsJsonAsync("/api/users", new { email, displayName = "Test Agent", password });
+        var response = await admin.PostAsJsonAsync("/api/users", new { email, displayName = "Test Agent", password, teamId });
         response.EnsureSuccessStatusCode();
         var created = await response.Content.ReadFromJsonAsync<UserDto>();
 
@@ -104,7 +133,8 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
     }
 }
 
-public sealed record UserDto(Guid Id, string Email, string DisplayName, string Role, bool IsActive, bool IsLockedOut);
+public sealed record UserDto(
+    Guid Id, string Email, string DisplayName, string Role, bool IsActive, bool IsLockedOut, int? TeamId = null, string? TeamName = null);
 
 public sealed record ValidationProblemDto(Dictionary<string, string[]> Errors);
 

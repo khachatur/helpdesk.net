@@ -3,6 +3,7 @@ using Helpdesk.Api.Health;
 using Helpdesk.Api.Jobs;
 using System.Text.Json.Serialization;
 using Helpdesk.Api.Migrations;
+using Helpdesk.Api.Teams;
 using Helpdesk.Api.Tickets;
 using Helpdesk.Api.Users;
 using Helpdesk.Infrastructure;
@@ -67,6 +68,7 @@ app.MapHealthChecks("/api/health", new HealthCheckOptions { ResponseWriter = Hea
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapTicketEndpoints();
+app.MapTeamEndpoints();
 app.UseHelpdeskBackgroundJobs();
 
 app.Run();

@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Helpdesk.Api.Auth;
 using Helpdesk.Core.Users;
 using Helpdesk.Infrastructure.Identity;
+using Helpdesk.Infrastructure.Teams;
+using Helpdesk.Infrastructure.Tickets;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 
@@ -10,7 +12,9 @@ namespace Helpdesk.Api.Users;
 /// <summary>Agent management. Admin only.</summary>
 public static class UserEndpoints
 {
-    public sealed record CreateAgentRequest(string? Email, string? DisplayName, string? Password);
+    public sealed record CreateAgentRequest(string? Email, string? DisplayName, string? Password, int? TeamId = null);
+
+    public sealed record SetTeamRequest(int? TeamId);
 
     public sealed record SetPasswordRequest(string? Password);
 
@@ -20,10 +24,13 @@ public static class UserEndpoints
 
         group.MapGet("/", ListAsync);
         group.MapPost("/", CreateAgentAsync);
-        group.MapPost("/{id:guid}/activate", (Guid id, UserManager<User> users, ClaimsPrincipal caller) =>
-            SetActiveAsync(id, isActive: true, users, caller));
-        group.MapPost("/{id:guid}/deactivate", (Guid id, UserManager<User> users, ClaimsPrincipal caller) =>
-            SetActiveAsync(id, isActive: false, users, caller));
+        group.MapPost("/{id:guid}/activate",
+            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, CancellationToken cancellationToken) =>
+                SetActiveAsync(id, isActive: true, users, caller, tickets, cancellationToken));
+        group.MapPost("/{id:guid}/deactivate",
+            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, CancellationToken cancellationToken) =>
+                SetActiveAsync(id, isActive: false, users, caller, tickets, cancellationToken));
+        group.MapPut("/{id:guid}/team", SetTeamAsync);
         group.MapPost("/{id:guid}/password", SetPasswordAsync);
 
         return routes;
@@ -33,11 +40,15 @@ public static class UserEndpoints
         UserQueries queries, CancellationToken cancellationToken)
     {
         var users = await queries.ListAsync(cancellationToken);
-        return TypedResults.Ok(users.Select(UserResponse.From));
+        return TypedResults.Ok(users.Select(user => UserResponse.From(user, user.TeamName)));
     }
 
     private static async Task<Results<Created<UserResponse>, ValidationProblem>> CreateAgentAsync(
-        CreateAgentRequest request, UserManager<User> userManager)
+        CreateAgentRequest request,
+        UserManager<User> userManager,
+        TeamStore teams,
+        TicketStore tickets,
+        CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var email = request.Email?.Trim() ?? "";
@@ -66,13 +77,24 @@ public static class UserEndpoints
             errors["password"] = ["Enter an initial password."];
         }
 
+        if (request.TeamId is { } teamId && !await teams.ExistsAsync(teamId, cancellationToken))
+        {
+            errors["teamId"] = ["Choose an existing team."];
+        }
+
         if (errors.Count > 0)
         {
             return TypedResults.ValidationProblem(errors);
         }
 
-        var user = new User { Email = email, DisplayName = displayName, Role = Roles.Agent };
+        var user = new User { Email = email, DisplayName = displayName, Role = Roles.Agent, TeamId = request.TeamId };
         var result = await userManager.CreateAsync(user, request.Password!);
+
+        // A team that had nobody active may have tickets waiting for an owner.
+        if (result.Succeeded && user.TeamId is { } joined)
+        {
+            await tickets.AssignUnassignedAsync(joined, cancellationToken);
+        }
 
         return result.Succeeded
             ? TypedResults.Created($"/api/users/{user.Id}", UserResponse.From(user))
@@ -80,7 +102,12 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> SetActiveAsync(
-        Guid id, bool isActive, UserManager<User> userManager, ClaimsPrincipal caller)
+        Guid id,
+        bool isActive,
+        UserManager<User> userManager,
+        ClaimsPrincipal caller,
+        TicketStore tickets,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
@@ -100,8 +127,63 @@ public static class UserEndpoints
         user.IsActive = isActive;
         // A new security stamp ends the user's existing sessions. This call also saves the user.
         var result = await userManager.UpdateSecurityStampAsync(user);
+        if (!result.Succeeded)
+        {
+            return TypedResults.NotFound();
+        }
 
-        return result.Succeeded ? TypedResults.NoContent() : TypedResults.NotFound();
+        if (!isActive)
+        {
+            // Their open tickets go to other members of each ticket's team.
+            await tickets.ReassignFromUserAsync(user.Id, keepInTeamId: null, cancellationToken);
+        }
+        else if (user.TeamId is { } teamId)
+        {
+            await tickets.AssignUnassignedAsync(teamId, cancellationToken);
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>Moves a user to a team, or out of every team. Tickets they owned in the team they left are handed on.</summary>
+    private static async Task<Results<NoContent, NotFound, ValidationProblem>> SetTeamAsync(
+        Guid id,
+        SetTeamRequest request,
+        UserManager<User> userManager,
+        TeamStore teams,
+        TicketStore tickets,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        if (request.TeamId is { } teamId && !await teams.ExistsAsync(teamId, cancellationToken))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["teamId"] = ["Choose an existing team."] });
+        }
+
+        if (user.TeamId == request.TeamId)
+        {
+            return TypedResults.NoContent();
+        }
+
+        user.TeamId = request.TeamId;
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return TypedResults.NotFound();
+        }
+
+        await tickets.ReassignFromUserAsync(user.Id, keepInTeamId: request.TeamId, cancellationToken);
+        if (request.TeamId is { } joined && user.IsActive)
+        {
+            await tickets.AssignUnassignedAsync(joined, cancellationToken);
+        }
+
+        return TypedResults.NoContent();
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem>> SetPasswordAsync(

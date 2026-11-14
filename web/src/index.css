@@ -454,3 +454,9 @@ a {
 .send-failed {
   color: var(--bad);
 }
+
+.page-intro {
+  max-width: 760px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}

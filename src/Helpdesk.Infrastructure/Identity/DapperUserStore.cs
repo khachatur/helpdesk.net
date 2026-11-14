@@ -18,7 +18,7 @@ public sealed class DapperUserStore(IDbConnectionFactory connectionFactory) :
     IUserSecurityStampStore<User>
 {
     internal const string Columns =
-        "Id, Email, NormalizedEmail, DisplayName, PasswordHash, SecurityStamp, Role, IsActive, AccessFailedCount, LockoutEnd, CreatedAt";
+        "Id, Email, NormalizedEmail, DisplayName, PasswordHash, SecurityStamp, Role, IsActive, AccessFailedCount, LockoutEnd, CreatedAt, TeamId";
 
     private const int UniqueIndexViolation = 2601;
     private const int UniqueConstraintViolation = 2627;
@@ -28,7 +28,7 @@ public sealed class DapperUserStore(IDbConnectionFactory connectionFactory) :
         const string sql = $"""
             INSERT INTO dbo.Users ({Columns})
             VALUES (@Id, @Email, @NormalizedEmail, @DisplayName, @PasswordHash, @SecurityStamp, @Role, @IsActive,
-                    @AccessFailedCount, @LockoutEnd, @CreatedAt)
+                    @AccessFailedCount, @LockoutEnd, @CreatedAt, @TeamId)
             """;
 
         try
@@ -59,7 +59,8 @@ public sealed class DapperUserStore(IDbConnectionFactory connectionFactory) :
                 Role = @Role,
                 IsActive = @IsActive,
                 AccessFailedCount = @AccessFailedCount,
-                LockoutEnd = @LockoutEnd
+                LockoutEnd = @LockoutEnd,
+                TeamId = @TeamId
             WHERE Id = @Id
             """;
 

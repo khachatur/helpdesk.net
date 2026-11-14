@@ -21,6 +21,7 @@ public static class TicketEndpoints
         TicketStatus[]? Status,
         string? Category,
         string? Assignee,
+        int? Team,
         string? Search,
         string? Sort,
         bool? Desc,
@@ -118,6 +119,7 @@ public static class TicketEndpoints
                 Unclassified = unclassified,
                 AssigneeId = assigneeId,
                 Unassigned = unassigned,
+                TeamId = request.Team,
                 Search = request.Search,
                 Sort = sort,
                 // Newest first unless the caller says otherwise.

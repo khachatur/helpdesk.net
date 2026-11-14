@@ -14,6 +14,8 @@ public sealed record TicketSummaryResponse(
     TicketCategory? Category,
     Guid? AssigneeId,
     string? AssigneeName,
+    int? TeamId,
+    string? TeamName,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
@@ -26,6 +28,8 @@ public sealed record TicketSummaryResponse(
         ticket.Category,
         ticket.AssigneeId,
         ticket.AssigneeName,
+        ticket.TeamId,
+        ticket.TeamName,
         ticket.CreatedAt,
         ticket.UpdatedAt);
 }
@@ -39,6 +43,8 @@ public sealed record TicketDetailResponse(
     TicketCategory? Category,
     Guid? AssigneeId,
     string? AssigneeName,
+    int? TeamId,
+    string? TeamName,
     int? OriginalTicketId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
@@ -59,6 +65,8 @@ public sealed record TicketDetailResponse(
         ticket.Category,
         ticket.AssigneeId,
         ticket.AssigneeName,
+        ticket.TeamId,
+        ticket.TeamName,
         ticket.OriginalTicketId,
         ticket.CreatedAt,
         ticket.UpdatedAt,

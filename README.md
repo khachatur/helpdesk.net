@@ -50,6 +50,13 @@ dotnet user-secrets set "Seed:Admin:Password" "<password>" --project src/Helpdes
 The secret is only read while no admin exists. To change the password afterwards, sign in and use
 **Change password**.
 
+### Teams
+
+Three teams are created by the migrations: General Support (the default), Technical Support, and Finance Support,
+each handling one category. A new ticket goes to the team for its category and is given to that team's active
+members in turn. Until a team has an active member its tickets stay unassigned, so after first sign-in create
+agents and set their team on the Agents page.
+
 ### Connecting the mailbox
 
 Email is off by default (`Email:Mode` is `None`): nothing is read, and agent replies are stored but not sent.

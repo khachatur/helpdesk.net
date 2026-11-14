@@ -1,6 +1,7 @@
 using Helpdesk.Infrastructure.Data;
 using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Identity;
+using Helpdesk.Infrastructure.Teams;
 using Helpdesk.Infrastructure.Tickets;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddSingleton<UserQueries>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<TicketStore>();
+        services.AddSingleton<TeamStore>();
         services.AddSingleton<EmailHtmlSanitizer>();
 
         services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.SectionName));

@@ -89,18 +89,18 @@ Outcome: an email to the shared mailbox becomes a ticket, and an agent's reply r
 
 Outcome: every new ticket lands in a team queue and gets an owner. The system is usable without AI from here.
 
-- [ ] 4.1 Write the schema for teams and team membership, and seed the three teams. (A1, A6)
-- [ ] 4.2 Add team management endpoints: create, edit, delete, add and remove members. (A1)
-- [ ] 4.3 Build the team management screen and add team assignment to the agent screen. (A1)
-- [ ] 4.4 Add the category-to-team mapping and a routing service that sets a ticket's team.
-- [ ] 4.5 Implement round-robin assignment per team, skipping inactive agents, safe under concurrent jobs.
-- [ ] 4.6 Run routing and assignment on ticket creation. Until phase 6, unclassified tickets go to General Support.
-- [ ] 4.7 Re-route and reassign when an agent changes a ticket's category.
-- [ ] 4.8 Return a reopened ticket to its previous owner when that agent is active. (A4)
-- [ ] 4.9 Reassign a deactivated agent's open tickets. (A5)
-- [ ] 4.10 Handle a team with no active agents: leave the ticket unassigned and flag it on the list.
-- [ ] 4.11 Add team and owner filters and a "my tickets" view to the list.
-- [ ] 4.12 Write tests for round-robin fairness, concurrency, and the reassignment rules.
+- [x] 4.1 Write the schema for teams, category routes, and team membership (a team column on the user), and seed the three teams. (A1, A6)
+- [x] 4.2 Add team management endpoints: create, edit (name, routed categories, default team), delete. Members are added and removed by setting each user's team. (A1)
+- [x] 4.3 Build the team management screen and add team assignment to the agent screen. (A1)
+- [x] 4.4 Add the category-to-team mapping and a routing service that sets a ticket's team.
+- [x] 4.5 Implement round-robin assignment per team, skipping inactive agents, safe under concurrent jobs.
+- [x] 4.6 Run routing and assignment on ticket creation. Until phase 6, unclassified tickets go to General Support.
+- [x] 4.7 Re-route and reassign when an agent changes a ticket's category.
+- [x] 4.8 Return a reopened ticket to its previous owner when that agent is active. (A4)
+- [x] 4.9 Reassign a deactivated agent's open tickets. (A5)
+- [x] 4.10 Handle a team with no active agents: leave the ticket unassigned and flag it on the list. Waiting tickets are assigned as soon as the team gets an active member.
+- [x] 4.11 Add team and owner filters and a "my tickets" view to the list.
+- [x] 4.12 Write tests for round-robin fairness, concurrency, and the reassignment rules.
 
 ## Phase 5 — Knowledge base
 

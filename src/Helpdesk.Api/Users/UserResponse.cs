@@ -9,14 +9,19 @@ public sealed record UserResponse(
     string Role,
     bool IsActive,
     bool IsLockedOut,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    int? TeamId,
+    string? TeamName)
 {
-    public static UserResponse From(User user) => new(
+    /// <param name="teamName">Filled in for lists. Null where only the team id is known.</param>
+    public static UserResponse From(User user, string? teamName = null) => new(
         user.Id,
         user.Email,
         user.DisplayName,
         user.Role,
         user.IsActive,
         user.LockoutEnd > DateTimeOffset.UtcNow,
-        user.CreatedAt);
+        user.CreatedAt,
+        user.TeamId,
+        teamName);
 }

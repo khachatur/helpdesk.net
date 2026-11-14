@@ -29,6 +29,8 @@ export interface TicketSummary {
   category: TicketCategory | null
   assigneeId: string | null
   assigneeName: string | null
+  teamId: number | null
+  teamName: string | null
   createdAt: string
   updatedAt: string
 }
@@ -50,7 +52,14 @@ export interface TicketMessage {
 
 export interface TicketEvent {
   id: number
-  type: 'Created' | 'StatusChanged' | 'CategoryChanged' | 'ReplyAdded' | 'ReplyReceived'
+  type:
+    | 'Created'
+    | 'StatusChanged'
+    | 'CategoryChanged'
+    | 'ReplyAdded'
+    | 'ReplyReceived'
+    | 'TeamChanged'
+    | 'Assigned'
   /** Null when the system made the change. */
   actorName: string | null
   from: string | null
@@ -73,10 +82,14 @@ export interface TicketDetail extends TicketSummary {
 /** "active" is everything still needing work: open and needs human review. */
 export type StatusFilter = 'active' | 'all' | TicketStatus
 export type CategoryFilter = 'all' | 'unclassified' | TicketCategory
+export type OwnerFilter = 'anyone' | 'me' | 'unassigned'
 
 export interface TicketFilters {
   status: StatusFilter
   category: CategoryFilter
+  /** A team id, or null for every team. */
+  team: number | null
+  owner: OwnerFilter
   search: string
 }
 
@@ -105,6 +118,8 @@ export function fetchTickets(filters: TicketFilters, page: TicketPageRequest): P
   }
 
   if (filters.category !== 'all') params.set('category', filters.category)
+  if (filters.team !== null) params.set('team', String(filters.team))
+  if (filters.owner !== 'anyone') params.set('assignee', filters.owner)
   if (filters.search.trim()) params.set('search', filters.search.trim())
 
   params.set('skip', String(page.skip))

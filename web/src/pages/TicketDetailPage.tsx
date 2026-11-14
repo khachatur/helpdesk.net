@@ -266,8 +266,18 @@ function DetailsPanel({ ticket }: { ticket: TicketDetail }) {
           <div className="muted">{ticket.requesterEmail}</div>
         </dd>
 
+        <dt>Team</dt>
+        <dd>{ticket.teamName ?? <span className="muted">None</span>}</dd>
+
         <dt>Owner</dt>
-        <dd>{ticket.assigneeName ?? <span className="muted">Unassigned</span>}</dd>
+        <dd>
+          {ticket.assigneeName ??
+            (ticket.acceptsChanges ? (
+              <span className="send-failed">Unassigned: the team has no active members</span>
+            ) : (
+              <span className="muted">Unassigned</span>
+            ))}
+        </dd>
 
         <dt>Category</dt>
         <dd>
@@ -362,6 +372,10 @@ function describe(event: TicketEvent): string {
       return 'Requester replied'
     case 'StatusChanged':
       return `Status: ${label(statusLabels, event.from)} → ${label(statusLabels, event.to)}`
+    case 'TeamChanged':
+      return `Team: ${event.from ?? 'None'} → ${event.to ?? 'None'}`
+    case 'Assigned':
+      return event.to ? `Assigned to ${event.to}` : 'Unassigned'
     case 'CategoryChanged':
       return `Category: ${label(categoryLabels, event.from, 'Unclassified')} → ${label(categoryLabels, event.to, 'Unclassified')}`
   }

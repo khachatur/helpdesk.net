@@ -12,6 +12,8 @@ public class TicketSummary
     public TicketCategory? Category { get; init; }
     public Guid? AssigneeId { get; init; }
     public string? AssigneeName { get; init; }
+    public int? TeamId { get; init; }
+    public string? TeamName { get; init; }
     public int? OriginalTicketId { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; init; }
@@ -98,6 +100,8 @@ public sealed record TicketListQuery
 
     /// <summary>Only tickets with no owner. Takes precedence over <see cref="AssigneeId"/>.</summary>
     public bool Unassigned { get; init; }
+
+    public int? TeamId { get; init; }
 
     /// <summary>Matches part of the subject, requester email, or requester name.</summary>
     public string? Search { get; init; }

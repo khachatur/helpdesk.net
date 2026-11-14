@@ -42,6 +42,12 @@ public enum TicketEventType
 
     /// <summary>The requester replied by email.</summary>
     ReplyReceived,
+
+    /// <summary>The ticket moved to another team's queue.</summary>
+    TeamChanged,
+
+    /// <summary>The ticket got a new owner, or lost its owner.</summary>
+    Assigned,
 }
 
 /// <summary>Whether an outbound message has been emailed to the requester.</summary>

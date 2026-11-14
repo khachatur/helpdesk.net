@@ -287,8 +287,7 @@ public class TicketTests(AuthApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var ticket = await GetAsync(admin, id);
         Assert.Equal(TicketCategory.RefundRequest, ticket.Category);
-        var change = ticket.Events.Last();
-        Assert.Equal(TicketEventType.CategoryChanged, change.Type);
+        var change = Assert.Single(ticket.Events, e => e.Type == TicketEventType.CategoryChanged);
         Assert.Equal(((string?)null, "RefundRequest"), (change.From, change.To));
     }
 

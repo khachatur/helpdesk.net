@@ -6,6 +6,7 @@ import { ChangePasswordPage } from './pages/ChangePasswordPage.tsx'
 import { HomePage } from './pages/HomePage.tsx'
 import { LoginPage } from './pages/LoginPage.tsx'
 import { NotFoundPage } from './pages/NotFoundPage.tsx'
+import { TeamsPage } from './pages/TeamsPage.tsx'
 import { TicketDetailPage } from './pages/TicketDetailPage.tsx'
 import { TicketsPage } from './pages/TicketsPage.tsx'
 
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
             element: <RequireAuth role="Admin" />,
             children: [
               { path: 'agents', element: <AgentsPage /> },
+              { path: 'teams', element: <TeamsPage /> },
               { path: 'status', element: <HomePage /> },
             ],
           },
