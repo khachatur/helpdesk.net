@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# DevExtreme licence key. The devextreme-license tool can write the key to a source file;
+# this project reads it from .env.local instead, and neither may be committed.
+devextreme-license.*
+.env
+.env.*
+!.env.example
