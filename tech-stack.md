@@ -61,6 +61,9 @@ See [project-scope.md](project-scope.md) for what the system does.
 - Each user has one role (Admin or Agent), stored as a column on the users table, so there is no role store or role tables.
 - The users table is created by a DbUp script like the rest of the schema.
 - Sessions use an HttpOnly, SameSite=Strict cookie. The web app and API are served from the same site, which is the CSRF defence.
+- Sign-in is limited to 10 attempts a minute per client address, on top of the per-account lockout.
+- Every response carries a content security policy that allows scripts only from the application itself, as a second line of defence behind the email HTML sanitiser.
+- In production one process serves both the API and the built web app (`wwwroot`), so there is a single thing to deploy.
 
 ### Frontend
 

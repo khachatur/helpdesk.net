@@ -35,7 +35,7 @@ body {
 }
 
 .app-main {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 24px;
 }
@@ -152,8 +152,15 @@ h1 {
   margin-top: 16px;
 }
 
+/* DevExtreme draws an "outside" label above its editor, in the space before it. The top margin
+   is that space; without it each label sits on top of the field above. */
 .field {
-  margin-bottom: 20px;
+  margin: 36px 0 14px;
+}
+
+.field:first-child,
+h1 + .field {
+  margin-top: 26px;
 }
 
 .field-hint {
@@ -767,4 +774,44 @@ a {
   min-width: 2px;
   border-radius: 0 4px 4px 0;
   background: #2a78d6;
+}
+
+.status-card {
+  max-width: 820px;
+  padding: 4px 16px;
+}
+
+.status-card .status-row {
+  display: grid;
+  grid-template-columns: 150px 80px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: start;
+  padding: 12px 0;
+  font-size: 14px;
+}
+
+.status-card .status-row:last-child {
+  border-bottom: 0;
+}
+
+.status-label {
+  font-weight: 600;
+}
+
+.status-state {
+  font-weight: 600;
+}
+
+.status-state-ok {
+  color: var(--ok);
+}
+
+.status-state-problem {
+  color: var(--bad);
+}
+
+.status-state-off,
+.status-detail {
+  color: var(--text-muted);
 }

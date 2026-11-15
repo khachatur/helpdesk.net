@@ -5,34 +5,20 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  # Throwaway password for each job's own SQL Server container. Not used anywhere else.
+  MSSQL_SA_PASSWORD: Ci-Only-Passw0rd
+
 jobs:
   api:
     name: API build and test
     runs-on: ubuntu-latest
     env:
-      # Throwaway password for the job's own SQL Server container. Not used anywhere else.
-      MSSQL_SA_PASSWORD: Ci-Only-Passw0rd
       HELPDESK_TEST_CONNECTION: Server=localhost,1433;Database=Helpdesk_Test;User Id=sa;Password=Ci-Only-Passw0rd;TrustServerCertificate=True
     steps:
       - uses: actions/checkout@v4
-
-      # Knowledge base search needs SQL Server Full-Text Search, which the stock image lacks,
-      # so the job builds its own image instead of using a service container.
       - name: Start SQL Server with Full-Text Search
-        run: |
-          docker build -t helpdesk-sqlserver-fts docker/sqlserver
-          docker run -d --name sqlserver -p 1433:1433 \
-            -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$MSSQL_SA_PASSWORD" helpdesk-sqlserver-fts
-          for attempt in $(seq 1 40); do
-            if docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1" > /dev/null 2>&1; then
-              echo "SQL Server is ready"
-              exit 0
-            fi
-            sleep 3
-          done
-          docker logs sqlserver
-          exit 1
-
+        run: ./.github/scripts/start-sqlserver.sh
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
@@ -56,3 +42,71 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    env:
+      HELPDESK_E2E_CONNECTION: Server=localhost,1433;Database=Helpdesk_E2E;User Id=sa;Password=Ci-Only-Passw0rd;TrustServerCertificate=True
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start SQL Server with Full-Text Search
+        run: ./.github/scripts/start-sqlserver.sh
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      # Builds the web app, starts the API on an empty database, and drives it in a real browser.
+      - run: npm run e2e
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 7
+
+  package:
+    name: Package for deployment
+    # Only what has passed every check on main is packaged.
+    if: github.event_name == 'push'
+    needs: [api, web, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build the web app
+        working-directory: web
+        env:
+          # Without this secret the build still works, and DevExtreme shows its trial banner.
+          VITE_DEVEXTREME_LICENSE_KEY: ${{ secrets.DEVEXTREME_LICENSE_KEY }}
+        run: |
+          npm ci
+          npm run build
+      - name: Publish the API with the web app inside it
+        run: |
+          dotnet publish src/Helpdesk.Api --configuration Release --output package/app
+          cp -r web/dist package/app/wwwroot
+          dotnet publish tools/Helpdesk.DbTool --configuration Release --output package/dbtool
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helpdesk-${{ github.sha }}
+          path: package
+          retention-days: 30

@@ -24,6 +24,8 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
     public const string AdminEmail = "admin@helpdesk.test";
     public const string AdminPassword = "Admin-Test-Pass-1";
 
+    public static string TestConnectionString => ConnectionString;
+
     private static string ConnectionString =>
         Environment.GetEnvironmentVariable("HELPDESK_TEST_CONNECTION")
         ?? "Server=localhost;Database=Helpdesk_Test;Integrated Security=True;TrustServerCertificate=True";
@@ -87,6 +89,8 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Email:Mode", "Graph");
         builder.UseSetting("Email:Mailbox", FakeMailbox.Address);
         builder.UseSetting("Ai:Mode", "Anthropic");
+        // Every test signs in, far more often than a person would.
+        builder.UseSetting("Auth:SignInAttemptsPerMinute", "100000");
 
         // Re-check the security stamp on every request, so tests see a deactivation immediately
         // instead of after the production one-minute interval.

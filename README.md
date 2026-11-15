@@ -5,6 +5,7 @@ AI-powered ticket management for a support mailbox.
 - [project-scope.md](project-scope.md) — what the system does
 - [tech-stack.md](tech-stack.md) — what it is built with
 - [implementation-plan.md](implementation-plan.md) — phases and tasks
+- [docs/runbook.md](docs/runbook.md) — deploying, operating and troubleshooting
 
 ## Layout
 
@@ -15,6 +16,7 @@ AI-powered ticket management for a support mailbox.
 | `src/Helpdesk.Infrastructure` | Data access (Dapper) and external services |
 | `src/Helpdesk.Migrations` | DbUp runner and versioned SQL scripts |
 | `tests/Helpdesk.Tests` | xUnit tests |
+| `tools/Helpdesk.DbTool` | Applies migrations as a deployment step; drops throwaway test databases |
 | `tools/Helpdesk.Eval` | Console tool that measures classification accuracy against the real model |
 | `eval` | Labelled sample emails for that tool |
 | `web` | React + TypeScript app (Vite) |
@@ -156,6 +158,16 @@ dotnet test Helpdesk.slnx
 npm --prefix web run lint
 npm --prefix web run build
 ```
+
+End-to-end tests drive a real browser through the main flows. They build the web app, start the API on an
+empty `Helpdesk_E2E` database with the sample data, and need nothing else running:
+
+```powershell
+npx --prefix web playwright install chromium   # once
+npm --prefix web run e2e
+```
+
+Screenshots of each main page are written to `web/e2e/screenshots` on every run.
 
 ## Database migrations
 

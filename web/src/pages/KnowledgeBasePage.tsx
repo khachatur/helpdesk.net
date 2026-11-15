@@ -92,7 +92,7 @@ export function KnowledgeBasePage() {
         />
         <Column
           caption=""
-          width={120}
+          width={150}
           allowSorting={false}
           cellRender={({ data }: { data: Article }) => (
             <div className="row-actions">

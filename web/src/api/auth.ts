@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, ApiError } from './client.ts'
 import type { User } from './users.ts'
 
@@ -23,15 +23,19 @@ export function useCurrentUser() {
   })
 }
 
+/** Drops everything cached except who is signed in, so one user never sees data fetched for another. */
+function forgetOtherUsersData(queryClient: QueryClient) {
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== currentUserKey[0] })
+}
+
 export function useSignIn() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
       api<User>('/auth/login', { method: 'POST', body: credentials }),
     onSuccess: (user) => {
-      // Drop anything cached for a previous user before showing this one's pages.
-      queryClient.clear()
       queryClient.setQueryData(currentUserKey, user)
+      forgetOtherUsersData(queryClient)
     },
   })
 }
@@ -41,8 +45,11 @@ export function useSignOut() {
   return useMutation({
     mutationFn: () => api<void>('/auth/logout', { method: 'POST' }),
     onSettled: () => {
-      queryClient.clear()
+      // Setting the user to null is what sends the visitor to the sign-in page. It has to update
+      // the query the pages are watching; clearing the whole cache first would replace that query
+      // with a new one nothing is watching, and the page would stay where it was.
       queryClient.setQueryData(currentUserKey, null)
+      forgetOtherUsersData(queryClient)
     },
   })
 }

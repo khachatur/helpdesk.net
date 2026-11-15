@@ -15,7 +15,7 @@ public static class AuthEndpoints
     {
         var group = routes.MapGroup("/api/auth").WithTags("Auth");
 
-        group.MapPost("/login", LoginAsync).AllowAnonymous();
+        group.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting(Hosting.WebHosting.SignInRateLimit);
         group.MapPost("/logout", LogoutAsync);
         group.MapGet("/me", MeAsync);
         group.MapPost("/change-password", ChangePasswordAsync);

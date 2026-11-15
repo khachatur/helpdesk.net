@@ -485,3 +485,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# End-to-end tests
+.e2e/
+web/test-results/
+web/playwright-report/
+web/e2e/screenshots/

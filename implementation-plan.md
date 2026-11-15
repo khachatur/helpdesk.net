@@ -164,11 +164,11 @@ Outcome: the admin can see how the system is performing.
 
 Outcome: the system is deployed and running on the real mailbox.
 
-- [ ] 9.1 Write Playwright end-to-end tests for the main flows: sign in, work a ticket, manage agents, approve a draft.
-- [ ] 9.2 Review authorization on every endpoint and add rate limiting to sign-in.
-- [ ] 9.3 Provision Azure App Service, Azure SQL Database (with full-text search enabled), and a secret store.
-- [ ] 9.4 Add the deployment pipeline, with DbUp migrations as a deployment step.
-- [ ] 9.5 Add monitoring and alerts: failed Hangfire jobs, a stalled mailbox poll, AI error rate.
-- [ ] 9.6 Decide and implement data retention for tickets and AI logs.
-- [ ] 9.7 Run a pilot on a test mailbox, then switch to the production mailbox with auto-send off.
-- [ ] 9.8 Write a short runbook: how to turn off auto-send, re-run failed jobs, and add an agent.
+- [x] 9.1 Write Playwright end-to-end tests for the main flows: sign in, work a ticket, manage agents, approve a draft. 24 tests in `web/e2e`, run against the API-served production build and a throwaway database; also in CI.
+- [x] 9.2 Review authorization on every endpoint and add rate limiting to sign-in. The review is kept as tests that list every endpoint. Also added: security headers with a content security policy.
+- [ ] 9.3 Provision Azure App Service, Azure SQL Database (with full-text search enabled), and a secret store. **Waiting on an Azure subscription.**
+- [ ] 9.4 Add the deployment pipeline, with DbUp migrations as a deployment step. **Half done:** CI packages a deployable build (the API serving the web app, plus the migration tool `Helpdesk.DbTool`). The step that deploys it to Azure waits on 9.3.
+- [ ] 9.5 Add monitoring and alerts: failed Hangfire jobs, a stalled mailbox poll, AI error rate. **Half done:** `/api/system/status` and the System status page report all three with a healthy flag each. Sending alerts needs a monitoring service, which waits on 9.3.
+- [ ] 9.6 Decide and implement data retention for tickets and AI logs. **Waiting on a decision.** Nothing is deleted automatically today.
+- [ ] 9.7 Run a pilot on a test mailbox, then switch to the production mailbox with auto-send off. **Waiting on the mailbox (3.1) and an API key.**
+- [x] 9.8 Write a short runbook: how to turn off auto-send, re-run failed jobs, and add an agent (`docs/runbook.md`).

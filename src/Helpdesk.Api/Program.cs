@@ -1,6 +1,7 @@
 using Helpdesk.Api.Auth;
 using Helpdesk.Api.Dashboard;
 using Helpdesk.Api.Health;
+using Helpdesk.Api.Hosting;
 using Helpdesk.Api.Jobs;
 using Helpdesk.Api.KnowledgeBase;
 using System.Text.Json.Serialization;
@@ -29,6 +30,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHelpdeskAuth(builder.Environment);
 builder.Services.AddHelpdeskBackgroundJobs(builder.Configuration);
+builder.Services.AddHelpdeskRateLimiting(builder.Configuration);
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
@@ -44,19 +46,25 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 await app.SeedAdminAsync();
 await app.SeedSampleTicketsAsync();
 await app.SeedSampleArticlesAsync();
+await app.SeedSampleDraftsAsync();
 
 // Unhandled exceptions and bare error status codes are returned as RFC 9457 problem details.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseSerilogRequestLogging();
+app.UseSecurityHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 
+// Before authorization: the pages and their scripts are public, the data behind them is not.
+app.UseWebApp();
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -74,6 +82,7 @@ app.MapTicketEndpoints();
 app.MapTeamEndpoints();
 app.MapArticleEndpoints();
 app.MapDashboardEndpoints();
+app.MapSystemStatusEndpoint();
 app.UseHelpdeskBackgroundJobs();
 
 app.Run();

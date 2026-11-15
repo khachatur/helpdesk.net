@@ -157,9 +157,13 @@ public sealed class ArticleStore(IDbConnectionFactory connectionFactory, TimePro
         {
             var pending = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 """
+                -- "Nothing pending" alone can be true for an instant before indexing of a fresh change
+                -- begins, so the number of indexed rows must also equal the number of articles.
                 SELECT CASE WHEN FULLTEXTCATALOGPROPERTY(N'HelpdeskCatalog', 'PopulateStatus') = 0
                              AND OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextPendingChanges') = 0
                              AND OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextPopulateStatus') = 0
+                             AND CONVERT(INT, OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextItemCount'))
+                                 = (SELECT COUNT(*) FROM dbo.Articles)
                             THEN 0 ELSE 1 END
                 """,
                 cancellationToken: cancellationToken));

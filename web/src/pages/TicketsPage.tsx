@@ -20,7 +20,7 @@ import {
   type TicketSummary,
 } from '../api/tickets.ts'
 import { CategoryLabel, StatusBadge } from '../components/TicketBadges.tsx'
-import { formatDateTime } from '../format.ts'
+import { formatDateTime, formatShortDateTime } from '../format.ts'
 
 const statusOptions: { value: StatusFilter; text: string }[] = [
   { value: 'active', text: 'Active (open and needs review)' },
@@ -198,15 +198,17 @@ export function TicketsPage() {
         <Pager visible showPageSizeSelector allowedPageSizes={[10, 25, 50, 100]} showInfo />
 
         <Column dataField="id" caption="#" width={80} alignment="left" />
+        {/* The subject takes whatever width is left, and never less than this; the grid scrolls sideways before it hides it. */}
         <Column
           dataField="subject"
           caption="Subject"
+          minWidth={240}
           cellRender={({ data }: { data: TicketSummary }) => <Link to={`/tickets/${data.id}`}>{data.subject}</Link>}
         />
         <Column
           dataField="requesterEmail"
           caption="Requester"
-          width={230}
+          width={170}
           cellRender={({ data }: { data: TicketSummary }) => (
             <span title={data.requesterEmail}>{data.requesterName ?? data.requesterEmail}</span>
           )}
@@ -214,13 +216,13 @@ export function TicketsPage() {
         <Column
           dataField="status"
           caption="Status"
-          width={170}
+          width={160}
           cellRender={({ data }: { data: TicketSummary }) => <StatusBadge status={data.status} />}
         />
         <Column
           dataField="category"
           caption="Category"
-          width={170}
+          width={160}
           cellRender={({ data }: { data: TicketSummary }) => <CategoryLabel category={data.category} />}
         />
         <Column
@@ -233,7 +235,7 @@ export function TicketsPage() {
         <Column
           dataField="assigneeName"
           caption="Owner"
-          width={150}
+          width={140}
           allowSorting={false}
           cellRender={({ data }: { data: TicketSummary }) =>
             data.assigneeName ?? <span className="send-failed">Unassigned</span>
@@ -242,15 +244,11 @@ export function TicketsPage() {
         <Column
           dataField="createdAt"
           caption="Created"
-          width={170}
+          width={150}
           defaultSortOrder="desc"
-          cellRender={({ data }: { data: TicketSummary }) => formatDateTime(data.createdAt)}
-        />
-        <Column
-          dataField="updatedAt"
-          caption="Updated"
-          width={170}
-          cellRender={({ data }: { data: TicketSummary }) => formatDateTime(data.updatedAt)}
+          cellRender={({ data }: { data: TicketSummary }) => (
+            <span title={formatDateTime(data.createdAt)}>{formatShortDateTime(data.createdAt)}</span>
+          )}
         />
       </DataGrid>
     </section>
