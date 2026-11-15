@@ -48,6 +48,12 @@ public enum TicketEventType
 
     /// <summary>The ticket got a new owner, or lost its owner.</summary>
     Assigned,
+
+    /// <summary>The AI's reply was sent without an agent reviewing it.</summary>
+    AiReplySent,
+
+    /// <summary>The AI handed the ticket to a person. The reason is in the event's "to" value.</summary>
+    Escalated,
 }
 
 /// <summary>Whether an outbound message has been emailed to the requester.</summary>
@@ -74,4 +80,26 @@ public enum ClassificationStatus
 
     /// <summary>The AI could not classify it, and it went to the default team.</summary>
     Failed,
+}
+
+/// <summary>What became of an AI-drafted reply.</summary>
+public enum DraftStatus
+{
+    /// <summary>Waiting for an agent.</summary>
+    Pending,
+
+    /// <summary>An agent sent it unchanged.</summary>
+    Sent,
+
+    /// <summary>An agent sent it with changes.</summary>
+    Edited,
+
+    /// <summary>An agent rejected it, or wrote their own reply instead.</summary>
+    Discarded,
+
+    /// <summary>The conversation moved on and a newer draft replaced it.</summary>
+    Superseded,
+
+    /// <summary>Sent without an agent reviewing it.</summary>
+    AutoSent,
 }

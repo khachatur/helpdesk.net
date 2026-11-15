@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<EmailClassifier>();
         services.AddSingleton<TicketClassifier>();
         services.AddSingleton<TicketSummarizer>();
+        services.AddSingleton<ReplyDrafter>();
         services.TryAddSingleton<IAiJobQueue, NoAiJobQueue>();
         services.AddSingleton<IAiClient>(provider =>
         {

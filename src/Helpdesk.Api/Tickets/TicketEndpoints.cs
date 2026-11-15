@@ -33,7 +33,8 @@ public static class TicketEndpoints
 
     public sealed record ChangeCategoryRequest(TicketCategory? Category);
 
-    public sealed record AddReplyRequest(string? Body, bool Resolve = false);
+    /// <param name="DraftId">The AI draft the agent started from, if any, so its fate can be recorded.</param>
+    public sealed record AddReplyRequest(string? Body, bool Resolve = false, long? DraftId = null);
 
     public sealed record ReplyCreatedResponse(long MessageId);
 
@@ -47,6 +48,7 @@ public static class TicketEndpoints
         group.MapPut("/{id:int}/category", ChangeCategoryAsync);
         group.MapPost("/{id:int}/replies", AddReplyAsync);
         group.MapPost("/{id:int}/messages/{messageId:long}/retry-send", RetrySendAsync);
+        group.MapPost("/{id:int}/drafts/{draftId:long}/discard", DiscardDraftAsync);
 
         return routes;
     }
@@ -137,9 +139,13 @@ public static class TicketEndpoints
         int id, TicketStore store, EmailHtmlSanitizer sanitizer, CancellationToken cancellationToken)
     {
         var ticket = await store.GetAsync(id, cancellationToken);
-        return ticket is null
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(TicketDetailResponse.From(ticket, sanitizer));
+        if (ticket is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var draft = await store.GetPendingDraftAsync(id, cancellationToken);
+        return TypedResults.Ok(TicketDetailResponse.From(ticket, draft, sanitizer));
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem, ProblemHttpResult>> ChangeStatusAsync(
@@ -207,7 +213,7 @@ public static class TicketEndpoints
         // The reply is stored first and emailed in the background, so a mail outage never loses what the agent wrote.
         var send = email.Value.IsEnabled;
         var (result, messageId) = await store.AddAgentReplyAsync(
-            id, caller.GetUserId(), body, request.Resolve, send, cancellationToken);
+            id, caller.GetUserId(), body, request.Resolve, send, cancellationToken, request.DraftId);
         if (result == TicketChangeResult.Ok && send)
         {
             replyQueue.Enqueue(messageId!.Value);
@@ -226,6 +232,13 @@ public static class TicketEndpoints
             _ => ClosedTicketProblem(),
         };
     }
+
+    /// <summary>An agent rejects the AI's suggested reply.</summary>
+    private static async Task<Results<NoContent, NotFound>> DiscardDraftAsync(
+        int id, long draftId, ClaimsPrincipal caller, TicketStore store, CancellationToken cancellationToken) =>
+        await store.DiscardDraftAsync(id, draftId, caller.GetUserId(), cancellationToken)
+            ? TypedResults.NoContent()
+            : TypedResults.NotFound();
 
     /// <summary>Tries again to email a reply whose sending failed.</summary>
     private static async Task<Results<NoContent, NotFound>> RetrySendAsync(

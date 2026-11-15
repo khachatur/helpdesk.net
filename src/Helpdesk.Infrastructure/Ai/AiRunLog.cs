@@ -7,6 +7,7 @@ public enum AiPurpose
 {
     Classification,
     Summary,
+    Draft,
 }
 
 public enum AiRunOutcome

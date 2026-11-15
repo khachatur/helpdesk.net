@@ -46,4 +46,11 @@ public static class TicketStatusRules
     /// </summary>
     public static TicketStatus AfterRequesterReply(TicketStatus current) =>
         current == TicketStatus.Resolved ? TicketStatus.Open : current;
+
+    /// <summary>
+    /// The status a ticket takes when the requester replies to an answer the AI sent on its own.
+    /// Writing back means the automatic answer was not enough, so a person takes over.
+    /// </summary>
+    public static TicketStatus AfterRequesterRepliesToAi(TicketStatus current) =>
+        AcceptsChanges(current) ? TicketStatus.NeedsHumanReview : current;
 }

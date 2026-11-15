@@ -105,14 +105,14 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
     {
         const string sql = $"""
             SELECT {SummaryColumns}, t.ResolvedAt, t.ClosedAt, t.ClassificationStatus, t.AiCategory, t.AiConfidence,
-                   t.Summary, t.SummaryMessageCount, t.SummaryUpdatedAt
+                   t.Summary, t.SummaryMessageCount, t.SummaryUpdatedAt, t.AutoSendDisabled
             FROM dbo.Tickets t
             LEFT JOIN dbo.Users assignee ON assignee.Id = t.AssigneeId
             LEFT JOIN dbo.Teams team ON team.Id = t.TeamId
             WHERE t.Id = @id;
 
             SELECT m.Id, m.Direction, m.SenderEmail, m.SenderName, m.AuthorUserId,
-                   author.DisplayName AS AuthorName, m.BodyText, m.BodyHtml, m.CreatedAt, m.SendStatus, m.SendError
+                   author.DisplayName AS AuthorName, m.BodyText, m.BodyHtml, m.CreatedAt, m.SendStatus, m.SendError, m.IsAiGenerated
             FROM dbo.TicketMessages m
             LEFT JOIN dbo.Users author ON author.Id = m.AuthorUserId
             WHERE m.TicketId = @id
@@ -313,7 +313,7 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
     /// Returns the new message's id when the reply was added.
     /// </summary>
     public async Task<(TicketChangeResult Result, long? MessageId)> AddAgentReplyAsync(
-        int id, Guid authorId, string body, bool resolve, bool send, CancellationToken cancellationToken)
+        int id, Guid authorId, string body, bool resolve, bool send, CancellationToken cancellationToken, long? draftId = null)
     {
         await using var connection = await connectionFactory.OpenAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -349,6 +349,7 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
             cancellationToken: cancellationToken));
 
         await AddEventAsync(connection, transaction, id, TicketEventType.ReplyAdded, authorId, null, null, now, cancellationToken);
+        await ResolveDraftsOnAgentReplyAsync(connection, transaction, id, draftId, body, messageId, authorId, now, cancellationToken);
 
         var newStatus = TicketStatusRules.AfterAgentReply(current.Status, resolve);
         if (newStatus != current.Status)
@@ -439,7 +440,35 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
 
         await AddEventAsync(connection, transaction, id, TicketEventType.ReplyReceived, null, null, null, now, cancellationToken);
 
-        var newStatus = TicketStatusRules.AfterRequesterReply(current.Status);
+        // Whatever was drafted answered an earlier state of the conversation.
+        await SupersedePendingDraftsAsync(connection, transaction, id, now, cancellationToken);
+
+        // A reply to an answer the AI sent on its own means that answer was not enough: a person
+        // takes over, and nothing more is sent automatically on this ticket.
+        var repliesToAi = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            """
+            SELECT COALESCE((SELECT TOP (1) IsAiGenerated FROM dbo.TicketMessages
+                             WHERE TicketId = @id AND Direction = N'Outbound' ORDER BY Id DESC), 0)
+            """,
+            new { id },
+            transaction,
+            cancellationToken: cancellationToken));
+
+        if (repliesToAi)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(
+                "UPDATE dbo.Tickets SET AutoSendDisabled = 1 WHERE Id = @id",
+                new { id },
+                transaction,
+                cancellationToken: cancellationToken));
+            await AddEventAsync(
+                connection, transaction, id, TicketEventType.Escalated, null, null,
+                "The requester replied to an automatic answer.", now, cancellationToken);
+        }
+
+        var newStatus = repliesToAi
+            ? TicketStatusRules.AfterRequesterRepliesToAi(current.Status)
+            : TicketStatusRules.AfterRequesterReply(current.Status);
         if (newStatus != current.Status)
         {
             await SetStatusAsync(connection, transaction, id, current.Status, newStatus, null, now, cancellationToken);
@@ -463,7 +492,12 @@ public sealed partial class TicketStore(IDbConnectionFactory connectionFactory, 
         }
 
         await transaction.CommitAsync(cancellationToken);
-        return newStatus != current.Status ? AppendResult.Reopened : AppendResult.Appended;
+        if (newStatus == current.Status)
+        {
+            return AppendResult.Appended;
+        }
+
+        return repliesToAi ? AppendResult.Escalated : AppendResult.Reopened;
     }
 
     /// <summary>Loads an agent reply with what is needed to email it. Null if it is not an outbound message.</summary>

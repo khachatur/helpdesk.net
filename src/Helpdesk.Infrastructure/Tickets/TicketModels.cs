@@ -37,6 +37,9 @@ public sealed class TicketDetail : TicketSummary
     public int? SummaryMessageCount { get; init; }
 
     public DateTimeOffset? SummaryUpdatedAt { get; init; }
+
+    /// <summary>True once the requester has replied to an AI-sent answer: nothing more is sent automatically.</summary>
+    public bool AutoSendDisabled { get; init; }
     public IReadOnlyList<TicketMessage> Messages { get; set; } = [];
     public IReadOnlyList<TicketEvent> Events { get; set; } = [];
 }
@@ -60,6 +63,9 @@ public sealed class TicketMessage
     public MessageSendStatus? SendStatus { get; init; }
 
     public string? SendError { get; init; }
+
+    /// <summary>Written by the AI and sent without an agent reviewing it.</summary>
+    public bool IsAiGenerated { get; init; }
 }
 
 public sealed class TicketEvent
@@ -156,6 +162,9 @@ public enum AppendResult
 
     /// <summary>The ticket was resolved, and the reply reopened it.</summary>
     Reopened,
+
+    /// <summary>The reply answered an AI-sent message, so the ticket now needs human review.</summary>
+    Escalated,
 
     /// <summary>The ticket is closed, so nothing was added.</summary>
     TicketClosed,

@@ -48,6 +48,8 @@ export interface TicketMessage {
   /** For agent replies: whether the reply has been emailed. Null for incoming messages. */
   sendStatus: 'Pending' | 'Sent' | 'Failed' | 'Skipped' | null
   sendError: string | null
+  /** Written by the AI and sent without an agent reviewing it. */
+  isAiGenerated: boolean
 }
 
 export interface TicketEvent {
@@ -60,11 +62,28 @@ export interface TicketEvent {
     | 'ReplyReceived'
     | 'TeamChanged'
     | 'Assigned'
+    | 'AiReplySent'
+    | 'Escalated'
   /** Null when the system made the change. */
   actorName: string | null
   from: string | null
   to: string | null
   createdAt: string
+}
+
+export interface TicketDraft {
+  id: number
+  body: string
+  /** From 0 to 1: the AI's own estimate that an agent would send this as written. */
+  confidence: number
+  /** Shadow mode: the reply passed every auto-send check and was held for review anyway. */
+  wouldHaveBeenSent: boolean
+  /** Why the reply was not sent automatically. */
+  heldBecause: string[]
+  /** False when messages have arrived since it was drafted. */
+  isCurrent: boolean
+  createdAt: string
+  sources: { articleId: number; title: string; autoSendAllowed: boolean }[]
 }
 
 export interface TicketDetail extends TicketSummary {
@@ -80,6 +99,8 @@ export interface TicketDetail extends TicketSummary {
   summary: string | null
   /** False when messages have arrived since the summary was written. */
   summaryIsCurrent: boolean
+  /** The AI's suggested reply waiting for an agent, if there is one. */
+  draft: TicketDraft | null
   /** The statuses the signed-in agent may move this ticket to. */
   allowedStatuses: TicketStatus[]
   /** False once the ticket is closed. */
@@ -192,10 +213,19 @@ export function useRetrySend(id: number) {
   })
 }
 
+export function useDiscardDraft(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (draftId: number) => api<void>(`/tickets/${id}/drafts/${draftId}/discard`, { method: 'POST' }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ticketKey(id) }),
+  })
+}
+
 export function useAddReply(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (reply: { body: string; resolve: boolean }) =>
+    // draftId names the AI draft the agent started from, so the server can record what became of it.
+    mutationFn: (reply: { body: string; resolve: boolean; draftId: number | null }) =>
       api<{ messageId: number }>(`/tickets/${id}/replies`, { method: 'POST', body: reply }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ticketKey(id) }),
   })

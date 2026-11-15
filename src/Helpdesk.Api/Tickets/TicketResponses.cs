@@ -58,13 +58,15 @@ public sealed record TicketDetailResponse(
     string? Summary,
     // False when messages have arrived since the summary was written.
     bool SummaryIsCurrent,
+    // The AI's suggested reply waiting for an agent, if there is one.
+    TicketDraftResponse? Draft,
     // What the signed-in agent may do next, so the client does not repeat the rules.
     IReadOnlyList<TicketStatus> AllowedStatuses,
     bool AcceptsChanges,
     IEnumerable<TicketMessageResponse> Messages,
     IEnumerable<TicketEventResponse> Events)
 {
-    public static TicketDetailResponse From(TicketDetail ticket, EmailHtmlSanitizer sanitizer) => new(
+    public static TicketDetailResponse From(TicketDetail ticket, TicketDraft? draft, EmailHtmlSanitizer sanitizer) => new(
         ticket.Id,
         ticket.Subject,
         ticket.RequesterEmail,
@@ -85,6 +87,7 @@ public sealed record TicketDetailResponse(
         ticket.AiConfidence,
         ticket.Summary,
         ticket.SummaryMessageCount == ticket.Messages.Count,
+        draft is null ? null : TicketDraftResponse.From(draft, ticket.Messages.Count),
         TicketStatusRules.AgentTargets(ticket.Status),
         TicketStatusRules.AcceptsChanges(ticket.Status),
         ticket.Messages.Select(message => TicketMessageResponse.From(message, sanitizer)),
@@ -103,7 +106,8 @@ public sealed record TicketMessageResponse(
     string? BodyHtml,
     DateTimeOffset CreatedAt,
     MessageSendStatus? SendStatus,
-    string? SendError)
+    string? SendError,
+    bool IsAiGenerated)
 {
     public static TicketMessageResponse From(TicketMessage message, EmailHtmlSanitizer sanitizer) => new(
         message.Id,
@@ -115,7 +119,8 @@ public sealed record TicketMessageResponse(
         message.BodyHtml is null ? null : sanitizer.Sanitize(message.BodyHtml),
         message.CreatedAt,
         message.SendStatus,
-        message.SendError);
+        message.SendError,
+        message.IsAiGenerated);
 }
 
 /// <param name="ActorName">Null when the system made the change.</param>
@@ -135,3 +140,30 @@ public sealed record TicketEventResponse(
         ticketEvent.ToValue,
         ticketEvent.CreatedAt);
 }
+
+/// <param name="Confidence">From 0 to 1: the AI's own estimate that an agent would send this as written.</param>
+/// <param name="WouldHaveBeenSent">Shadow mode: the reply passed every auto-send check, and was held for review anyway.</param>
+/// <param name="HeldBecause">Why the reply was not sent automatically.</param>
+/// <param name="IsCurrent">False when messages have arrived since it was drafted.</param>
+public sealed record TicketDraftResponse(
+    long Id,
+    string Body,
+    decimal Confidence,
+    bool WouldHaveBeenSent,
+    IReadOnlyList<string> HeldBecause,
+    bool IsCurrent,
+    DateTimeOffset CreatedAt,
+    IEnumerable<DraftSourceResponse> Sources)
+{
+    public static TicketDraftResponse From(TicketDraft draft, int messageCount) => new(
+        draft.Id,
+        draft.Body,
+        draft.Confidence,
+        draft.GateDecision == AutoSendDecision.WouldSend,
+        draft.GateReasons?.Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? [],
+        draft.BasedOnMessageCount == messageCount,
+        draft.CreatedAt,
+        draft.Sources.Select(source => new DraftSourceResponse(source.ArticleId, source.Title, source.AutoSendAllowed)));
+}
+
+public sealed record DraftSourceResponse(int ArticleId, string Title, bool AutoSendAllowed);

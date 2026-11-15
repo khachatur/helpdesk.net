@@ -134,21 +134,21 @@ Outcome: agents get a suggested reply on each ticket, and approved FAQ answers g
 
 Drafts:
 
-- [ ] 7.1 Implement draft generation: retrieve articles, generate a reply, and return the source article IDs and confidence as structured output.
-- [ ] 7.2 Store drafts with their sources, and regenerate when the student replies.
-- [ ] 7.3 Show the suggested reply on the detail view with its source articles; let the agent edit, send, or discard it.
-- [ ] 7.4 Record whether each draft was sent unchanged, edited, or discarded.
+- [x] 7.1 Implement draft generation: retrieve articles, generate a reply, and return the source article IDs and confidence as structured output.
+- [x] 7.2 Store drafts with their sources, and regenerate when the student replies. A ticket has at most one pending draft; the older one is marked superseded.
+- [x] 7.3 Show the suggested reply on the detail view with its source articles; let the agent edit, send, or discard it.
+- [x] 7.4 Record whether each draft was sent unchanged, edited, or discarded. An agent who writes their own reply instead counts as discarding it.
 
 Auto-send:
 
-- [ ] 7.5 Implement the auto-send gate in code: every source article is `AutoSendAllowed`, confidence is above the threshold, the topic is not on the never-auto-send list, and auto-send is not disabled on the ticket.
-- [ ] 7.6 Add a global auto-send switch and the confidence threshold to configuration.
-- [ ] 7.7 Run the gate in shadow mode first: log what would have been sent, and review it with agents.
-- [ ] 7.8 Send approved replies through the phase 3 pipeline, marked as AI-sent on the ticket and in the event history.
-- [ ] 7.9 Escalate to Needs Human Review when confidence is low or no article matches. (A2)
-- [ ] 7.10 On a student reply to an AI-sent response: set Needs Human Review, disable auto-send on the ticket, and queue it for an agent.
-- [ ] 7.11 Write tests covering every branch of the gate, including prompt-injection sample emails.
-- [ ] 7.12 Turn auto-send on for a small set of articles and widen it as results allow.
+- [x] 7.5 Implement the auto-send gate in code (`AutoSendGate`): every source article is `AutoSendAllowed`, confidence is above the threshold, the topic is not on the never-auto-send list, and auto-send is not disabled on the ticket. Also required: the ticket is open, has a category other than refund, and has not been answered before.
+- [x] 7.6 Add a global auto-send switch and the confidence threshold to configuration.
+- [x] 7.7 Shadow mode is built: a reply that passes every check is recorded as "would send" and shown to the agent as such. **Still to do: run it on real tickets and review the results with agents.**
+- [x] 7.8 Send approved replies through the phase 3 pipeline, marked as AI-sent on the ticket and in the event history.
+- [x] 7.9 Escalate to Needs Human Review when confidence is low or no article matches. (A2)
+- [x] 7.10 On a student reply to an AI-sent response: set Needs Human Review, disable auto-send on the ticket, and queue it for an agent.
+- [x] 7.11 Write tests covering every branch of the gate, including prompt-injection sample emails.
+- [ ] 7.12 Turn auto-send on for a small set of articles and widen it as results allow. **Waiting on an API key and on the shadow-mode review. Auto-send is off by default.**
 
 ## Phase 8 — Dashboard and ticket lifecycle
 

@@ -13,6 +13,8 @@ public interface IAiJobQueue
     void EnqueueClassification(int ticketId);
 
     void EnqueueSummary(int ticketId);
+
+    void EnqueueDraft(int ticketId);
 }
 
 /// <summary>Used when background jobs are switched off. Nothing is queued.</summary>
@@ -23,6 +25,10 @@ public sealed class NoAiJobQueue : IAiJobQueue
     }
 
     public void EnqueueSummary(int ticketId)
+    {
+    }
+
+    public void EnqueueDraft(int ticketId)
     {
     }
 }
@@ -36,6 +42,7 @@ public sealed class TicketClassifier(
     TicketStore tickets,
     AiRunLog runs,
     IOptions<AiOptions> options,
+    IAiJobQueue jobs,
     TimeProvider timeProvider,
     ILogger<TicketClassifier> logger)
 {
@@ -78,6 +85,7 @@ public sealed class TicketClassifier(
             }
 
             await tickets.ApplyClassificationAsync(ticketId, null, null, null, failed: true, cancellationToken);
+            jobs.EnqueueDraft(ticketId);
             return;
         }
 
@@ -89,6 +97,7 @@ public sealed class TicketClassifier(
 
             // Asking again would most likely get the same answer, so the ticket goes to a person.
             await tickets.ApplyClassificationAsync(ticketId, null, null, null, failed: true, cancellationToken);
+            jobs.EnqueueDraft(ticketId);
             return;
         }
 
@@ -102,6 +111,9 @@ public sealed class TicketClassifier(
             classification.Confidence,
             failed: false,
             cancellationToken);
+
+        // The reply is drafted once the category is known, because the auto-send check depends on it.
+        jobs.EnqueueDraft(ticketId);
     }
 
     /// <summary>

@@ -16,11 +16,13 @@ import {
   useAddReply,
   useChangeCategory,
   useChangeStatus,
+  useDiscardDraft,
   useRetrySend,
   useTicket,
   type TicketCategory,
   type TicketDetail,
   type TicketEvent,
+  type TicketDraft,
   type TicketMessage,
   type TicketStatus,
 } from '../api/tickets.ts'
@@ -74,6 +76,8 @@ export function TicketDetailPage() {
 function TicketView({ ticket }: { ticket: TicketDetail }) {
   // The reply text lives here so the knowledge base panel can add an article to it.
   const [reply, setReply] = useState('')
+  // The AI draft the reply was started from, if the agent chose to use one.
+  const [usedDraftId, setUsedDraftId] = useState<number | null>(null)
 
   function addToReply(text: string) {
     setReply((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text))
@@ -111,7 +115,24 @@ function TicketView({ ticket }: { ticket: TicketDetail }) {
 
           {ticket.acceptsChanges ? (
             <>
-              <ReplyBox ticket={ticket} body={reply} setBody={setReply} />
+              {ticket.draft && (
+                <DraftCard
+                  ticketId={ticket.id}
+                  draft={ticket.draft}
+                  inUse={usedDraftId === ticket.draft.id}
+                  onUse={(draft) => {
+                    setReply(draft.body)
+                    setUsedDraftId(draft.id)
+                  }}
+                />
+              )}
+              <ReplyBox
+                ticket={ticket}
+                body={reply}
+                setBody={setReply}
+                draftId={usedDraftId}
+                onSent={() => setUsedDraftId(null)}
+              />
               <KnowledgeBasePanel
                 // Start from the ticket's subject, which is usually the question.
                 initialQuestion={ticket.subject.replace(/^(\s*(re|fw|fwd):\s*)+/i, '')}
@@ -138,7 +159,7 @@ function Message({ message, ticketId, isFirst }: { message: TicketMessage; ticke
   // requester's own words (the text version) unless the reader asks for the full email.
   const [showFull, setShowFull] = useState(isFirst)
   const author = outbound
-    ? (message.authorName ?? 'Helpdesk')
+    ? (message.authorName ?? (message.isAiGenerated ? 'Helpdesk AI' : 'Helpdesk'))
     : (message.senderName ?? message.senderEmail ?? 'Requester')
 
   return (
@@ -148,7 +169,14 @@ function Message({ message, ticketId, isFirst }: { message: TicketMessage; ticke
         {!outbound && message.senderName && message.senderEmail && (
           <span className="muted">{message.senderEmail}</span>
         )}
-        {outbound && <span className="muted">Agent reply</span>}
+        {outbound &&
+          (message.isAiGenerated ? (
+            <span className="ai-tag" title="Written by the AI and sent without an agent reviewing it">
+              Sent automatically
+            </span>
+          ) : (
+            <span className="muted">Agent reply</span>
+          ))}
         <time className="muted" dateTime={message.createdAt}>
           {formatDateTime(message.createdAt)}
         </time>
@@ -267,14 +295,95 @@ function KnowledgeBasePanel({ initialQuestion, onUse }: { initialQuestion: strin
   )
 }
 
+/** The AI's suggested reply. The agent decides: use it (and edit it freely), or discard it. */
+function DraftCard({
+  ticketId,
+  draft,
+  inUse,
+  onUse,
+}: {
+  ticketId: number
+  draft: TicketDraft
+  inUse: boolean
+  onUse: (draft: TicketDraft) => void
+}) {
+  const discard = useDiscardDraft(ticketId)
+
+  return (
+    <div className="card draft-card">
+      <h2>
+        Suggested reply <span className="ai-tag">AI</span>
+        <span className="muted draft-confidence">{Math.round(draft.confidence * 100)}% sure</span>
+      </h2>
+
+      {!draft.isCurrent && (
+        <p className="muted draft-note">Written before the latest message. A new suggestion is on its way.</p>
+      )}
+
+      <div className="draft-body message-text">{draft.body}</div>
+
+      {draft.sources.length > 0 && (
+        <p className="draft-note">
+          Based on:{' '}
+          {draft.sources.map((source, index) => (
+            <span key={source.articleId}>
+              {index > 0 && ', '}
+              <Link to={`/knowledge-base/${source.articleId}`}>{source.title}</Link>
+              {!source.autoSendAllowed && <span className="muted"> (not approved for auto-send)</span>}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {draft.wouldHaveBeenSent ? (
+        <p className="draft-note">
+          <strong>Shadow mode:</strong> this reply passed every auto-send check and would have been sent without
+          review. Would you have sent it as written?
+        </p>
+      ) : (
+        draft.heldBecause.length > 0 && (
+          <details className="draft-note muted">
+            <summary>Why this was not sent automatically</summary>
+            <ul>
+              {draft.heldBecause.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          </details>
+        )
+      )}
+
+      <div className="dialog-actions">
+        <Button
+          text="Discard"
+          stylingMode="text"
+          disabled={discard.isPending}
+          onClick={() => discard.mutate(draft.id, { onError: (error) => notify(errorMessage(error), 'error', 5000) })}
+        />
+        <Button
+          text={inUse ? 'In the reply box' : 'Use this reply'}
+          stylingMode="outlined"
+          type="default"
+          disabled={inUse}
+          onClick={() => onUse(draft)}
+        />
+      </div>
+    </div>
+  )
+}
+
 function ReplyBox({
   ticket,
   body,
   setBody,
+  draftId,
+  onSent,
 }: {
   ticket: TicketDetail
   body: string
   setBody: (body: string) => void
+  draftId: number | null
+  onSent: () => void
 }) {
   const addReply = useAddReply(ticket.id)
   const apiError = addReply.error instanceof ApiError ? addReply.error : undefined
@@ -282,10 +391,11 @@ function ReplyBox({
   function send(resolve: boolean) {
     if (addReply.isPending || !body.trim()) return
     addReply.mutate(
-      { body, resolve },
+      { body, resolve, draftId },
       {
         onSuccess: () => {
           setBody('')
+          onSent()
           notify(resolve ? 'Reply added and ticket resolved.' : 'Reply added.', 'success', 3000)
         },
       },
@@ -513,6 +623,10 @@ function describe(event: TicketEvent): string {
       return `Status: ${label(statusLabels, event.from)} → ${label(statusLabels, event.to)}`
     case 'TeamChanged':
       return `Team: ${event.from ?? 'None'} → ${event.to ?? 'None'}`
+    case 'AiReplySent':
+      return 'AI reply sent without review'
+    case 'Escalated':
+      return `Handed to a person: ${event.to ?? 'no reason recorded'}`
     case 'Assigned':
       return event.to ? `Assigned to ${event.to}` : 'Unassigned'
     case 'CategoryChanged':

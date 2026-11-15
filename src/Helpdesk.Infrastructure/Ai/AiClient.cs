@@ -2,6 +2,7 @@ using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
 using Anthropic.Models.Messages;
+using Helpdesk.Core.Tickets;
 using Microsoft.Extensions.Options;
 
 namespace Helpdesk.Infrastructure.Ai;
@@ -29,6 +30,17 @@ public sealed class AiOptions
 
     public string SummaryModel { get; set; } = "claude-haiku-5-5";
 
+    public string DraftModel { get; set; } = "claude-sonnet-5-5";
+
+    /// <summary>Whether AI replies can go out without an agent reading them. Off unless set.</summary>
+    public AutoSendMode AutoSendMode { get; set; } = AutoSendMode.Off;
+
+    /// <summary>The AI must be at least this sure of a reply for it to be sent without review.</summary>
+    public double AutoSendConfidenceThreshold { get; set; } = 0.85;
+
+    /// <summary>A draft the AI is less sure of than this marks the ticket as needing human review.</summary>
+    public double EscalationConfidenceThreshold { get; set; } = 0.5;
+
     /// <summary>
     /// A classification the AI is less sure of than this is not applied: the ticket stays
     /// unclassified and goes to the default team for an agent to categorise.
@@ -49,7 +61,9 @@ public sealed record AiRequest(
     string System,
     string UserContent,
     int MaxTokens,
-    IReadOnlyDictionary<string, JsonElement>? JsonSchema = null);
+    IReadOnlyDictionary<string, JsonElement>? JsonSchema = null,
+    // Sorting and summarising are quick, well-defined tasks. Writing a reply deserves more care.
+    bool Careful = false);
 
 public sealed record AiResponse(string Text, int InputTokens, int OutputTokens, bool Refused = false, bool Truncated = false);
 
@@ -87,16 +101,16 @@ public sealed class AnthropicAiClient : IAiClient
 
     public async Task<AiResponse> CompleteAsync(AiRequest request, CancellationToken cancellationToken)
     {
+        var effort = request.Careful ? Effort.Medium : Effort.Low;
         var parameters = new MessageCreateParams
         {
             Model = request.Model,
             MaxTokens = request.MaxTokens,
             System = request.System,
             Messages = [new UserMessageParam { Content = request.UserContent }],
-            // These are short, well-defined tasks, so the model is told not to deliberate at length.
             OutputConfig = request.JsonSchema is null
-                ? new OutputConfig { Effort = Effort.Low }
-                : new OutputConfig { Effort = Effort.Low, Format = new JsonOutputFormat { Schema = request.JsonSchema } },
+                ? new OutputConfig { Effort = effort }
+                : new OutputConfig { Effort = effort, Format = new JsonOutputFormat { Schema = request.JsonSchema } },
         };
 
         Message message;

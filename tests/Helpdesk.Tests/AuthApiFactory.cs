@@ -50,6 +50,13 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         connection.Execute(SeedRoutesSql);
     }
 
+    /// <summary>Empties the knowledge base, so a test's search results depend only on the articles it creates.</summary>
+    public void ClearKnowledgeBase()
+    {
+        using var connection = new SqlConnection(ConnectionString);
+        connection.Execute("DELETE FROM dbo.TicketDraftSources; DELETE FROM dbo.Articles;");
+    }
+
     public AuthApiFactory()
     {
         DatabaseMigrator.Migrate(ConnectionString);
@@ -57,6 +64,7 @@ public sealed class AuthApiFactory : WebApplicationFactory<Program>
         using var connection = new SqlConnection(ConnectionString);
         connection.Execute("""
             DELETE FROM dbo.AiRuns; DELETE FROM dbo.InboundEmails; DELETE FROM dbo.MailboxState;
+            DELETE FROM dbo.TicketDraftSources; DELETE FROM dbo.TicketDrafts;
             DELETE FROM dbo.TicketEvents; DELETE FROM dbo.TicketMessages; DELETE FROM dbo.Tickets;
             DELETE FROM dbo.Articles; UPDATE dbo.Teams SET LastAssignedUserId = NULL;
             DELETE FROM dbo.Users; DELETE FROM dbo.CategoryRoutes; DELETE FROM dbo.Teams;

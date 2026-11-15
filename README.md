@@ -99,6 +99,23 @@ goes to the default team unclassified. If the AI fails, the ticket is routed wit
 that runs every minute routes any ticket that has waited ten minutes. Tickets with a longer conversation also
 get a short summary. Every call is recorded in the `AiRuns` table with its tokens, duration and outcome.
 
+With AI on, each ticket waiting for a reply also gets a suggested reply drafted from the knowledge base
+(`claude-sonnet-5-5`), which the agent can use, edit or discard. When no article matches, or the AI cannot
+answer or is unsure, the ticket is marked as needing human review.
+
+**Auto-send is separate and off by default.** `Ai:AutoSendMode` takes three values:
+
+- `Off`: every reply is reviewed by an agent.
+- `Shadow`: nothing is sent, but a reply that passes every check is recorded and shown as "would have been
+  sent". Run this first and review the results with agents.
+- `On`: a reply that passes every check is emailed without review, and the ticket is resolved.
+
+The check is code, not a prompt. A reply is sent only if every article it was written from is approved for
+auto-send, the AI is at least 85% sure (`Ai:AutoSendConfidenceThreshold`), the ticket is open with a category
+other than refund, it is the first reply on the ticket, and the message does not touch a subject that always
+needs a person. If the requester writes back to an automatic answer, the ticket goes to a person and nothing
+more is sent automatically on it.
+
 To measure classification accuracy against the real model (each run calls the API once per sample):
 
 ```powershell

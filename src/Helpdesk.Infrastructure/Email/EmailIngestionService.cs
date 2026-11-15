@@ -123,9 +123,9 @@ public sealed class EmailIngestionService(
                 email.ConversationId);
 
             var result = await ticketStore.AppendInboundAsync(ticketId, message, cancellationToken);
-            if (result is AppendResult.Appended or AppendResult.Reopened)
+            if (result is AppendResult.Appended or AppendResult.Reopened or AppendResult.Escalated)
             {
-                var outcome = result == AppendResult.Reopened ? InboundOutcome.ReopenedTicket : InboundOutcome.AppendedToTicket;
+                var outcome = result == AppendResult.Appended ? InboundOutcome.AppendedToTicket : InboundOutcome.ReopenedTicket;
                 await emailStore.LogAsync(email, outcome, ticketId, null, cancellationToken);
                 QueueAi(ticketId, classify: false);
                 return outcome;
@@ -166,7 +166,12 @@ public sealed class EmailIngestionService(
 
         if (classify)
         {
+            // The draft follows classification, which queues it when it finishes.
             aiJobs.EnqueueClassification(ticketId);
+        }
+        else
+        {
+            aiJobs.EnqueueDraft(ticketId);
         }
 
         aiJobs.EnqueueSummary(ticketId);

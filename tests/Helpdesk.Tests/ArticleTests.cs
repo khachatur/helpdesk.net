@@ -20,8 +20,7 @@ public class ArticleTests
         _articles = factory.Services.GetRequiredService<ArticleStore>();
 
         // Search ranks articles against each other, so every test starts with an empty knowledge base.
-        using var connection = factory.Services.GetRequiredService<IDbConnectionFactory>().OpenAsync().GetAwaiter().GetResult();
-        connection.Execute("DELETE FROM dbo.Articles");
+        factory.ClearKnowledgeBase();
     }
 
     private static async Task<int> CreateAsync(

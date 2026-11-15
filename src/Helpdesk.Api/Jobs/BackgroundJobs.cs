@@ -120,6 +120,13 @@ public sealed class SummarizeTicketJob(TicketSummarizer summarizer)
     public Task RunAsync(int ticketId, CancellationToken cancellationToken) => summarizer.SummarizeAsync(ticketId, cancellationToken);
 }
 
+/// <summary>Drafts a reply to one ticket, and sends it when the auto-send check passes. Without a draft the agent simply writes the reply, so it is tried a few times and then given up.</summary>
+public sealed class DraftReplyJob(ReplyDrafter drafter)
+{
+    [AutomaticRetry(Attempts = 3, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
+    public Task RunAsync(int ticketId, CancellationToken cancellationToken) => drafter.DraftAsync(ticketId, cancellationToken);
+}
+
 /// <summary>Once a minute, routes tickets whose classification never completed, so none is left outside every queue.</summary>
 public sealed class RouteStuckTicketsJob(TicketClassifier classifier)
 {
@@ -135,4 +142,7 @@ public sealed class HangfireAiJobQueue(IBackgroundJobClient jobs) : IAiJobQueue
 
     public void EnqueueSummary(int ticketId) =>
         jobs.Enqueue<SummarizeTicketJob>(job => job.RunAsync(ticketId, CancellationToken.None));
+
+    public void EnqueueDraft(int ticketId) =>
+        jobs.Enqueue<DraftReplyJob>(job => job.RunAsync(ticketId, CancellationToken.None));
 }
