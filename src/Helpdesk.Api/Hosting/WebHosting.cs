@@ -49,6 +49,27 @@ public static class WebHosting
         return services;
     }
 
+    /// <summary>
+    /// Ends a request quietly when the caller has gone away. A browser that leaves a page cancels
+    /// its requests, which cancels the database query underneath and surfaces as an exception.
+    /// That is not a server fault, so it is answered with 499 and not logged as an error.
+    /// </summary>
+    public static IApplicationBuilder UseQuietClientDisconnects(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            try
+            {
+                await next();
+            }
+            catch (Exception) when (context.RequestAborted.IsCancellationRequested)
+            {
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
+                }
+            }
+        });
+
     /// <summary>Adds headers that tell the browser to be strict with everything this application serves.</summary>
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>

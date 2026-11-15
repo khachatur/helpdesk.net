@@ -52,6 +52,7 @@ await app.SeedSampleDraftsAsync();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseSerilogRequestLogging();
+app.UseQuietClientDisconnects();
 app.UseSecurityHeaders();
 
 if (!app.Environment.IsDevelopment())

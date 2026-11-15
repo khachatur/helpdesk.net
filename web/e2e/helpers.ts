@@ -9,7 +9,7 @@ export async function signIn(page: Page, credentials: { email: string; password:
   await page.getByRole('textbox', { name: 'Email' }).fill(credentials.email)
   await page.getByRole('textbox', { name: 'Password' }).fill(credentials.password)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('heading', { name: 'Tickets' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tickets', exact: true })).toBeVisible()
 }
 
 /** Picks an option in a DevExtreme select box, found by its label. */
@@ -39,6 +39,8 @@ export function unique(prefix: string) {
  * still the old ones.
  */
 export async function searchTickets(page: Page, text: string) {
+  // Other pages have a search box too, so make sure the ticket list is the page on screen.
+  await expect(page.getByRole('heading', { name: 'Tickets', exact: true })).toBeVisible()
   await page.getByRole('textbox', { name: 'Search' }).fill(text)
   await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe(text)
   await expect(gridRows(page).first()).toContainText(text)

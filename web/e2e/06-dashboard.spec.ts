@@ -4,7 +4,7 @@ import { choose, signIn, snapshot } from './helpers.ts'
 test.beforeEach(async ({ page }) => {
   await signIn(page)
   await page.getByRole('link', { name: 'Dashboard' }).click()
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
 })
 
 test('the dashboard shows current work, what needs attention, and the period figures', async ({ page }) => {
@@ -54,7 +54,7 @@ test('tickets with no owner are listed as needing attention and link to the list
   await page.locator('.attention-list').getByRole('link', { name: /no owner/ }).click()
 
   await expect(page).toHaveURL(/owner=unassigned/)
-  await expect(page.getByRole('heading', { name: 'Tickets' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tickets', exact: true })).toBeVisible()
 })
 
 test('the system status page says what is on, what is off, and what is wrong', async ({ page }) => {
