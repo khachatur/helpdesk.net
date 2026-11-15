@@ -594,3 +594,177 @@ a {
 .draft-note summary {
   cursor: pointer;
 }
+
+.dash-heading {
+  margin: 24px 0 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dash-period-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 32px 0 12px;
+}
+
+.dash-period-bar h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.dash-filters {
+  margin-bottom: 0;
+}
+
+.tile-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.tile {
+  padding: 16px;
+}
+
+.tile-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tile-value {
+  margin-top: 4px;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tile-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dash-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.dash-card {
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.dash-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dash-card > p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.chart-note {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.attention-list,
+.ticket-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention-list > li {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.attention-list > li:first-child {
+  padding-top: 0;
+}
+
+.attention-list > li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.attention-list .muted {
+  font-size: 13px;
+}
+
+/* The mark carries the meaning together with the text beside it, never by colour alone. */
+.attention-mark {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bad);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.attention-info {
+  background: #5b3fc4;
+}
+
+.ticket-links {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.ticket-links li {
+  padding: 2px 0;
+}
+
+.bar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.bar-table th,
+.bar-table td {
+  padding: 6px 8px 6px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+.bar-table thead th {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.bar-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar-table .bar-cell {
+  width: 45%;
+}
+
+.bar-table .bar {
+  display: block;
+  height: 10px;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: #2a78d6;
+}

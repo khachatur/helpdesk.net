@@ -60,6 +60,16 @@ each handling one category. A new ticket goes to the team for its category and i
 members in turn. Until a team has an active member its tickets stay unassigned, so after first sign-in create
 agents and set their team on the Agents page.
 
+### Dashboard and automatic closing
+
+Admins get a Dashboard page: open work by status and team, what needs attention (tickets with no owner,
+replies that could not be emailed, shadow-mode replies awaiting review), and for a chosen period the ticket
+volume, median time to first reply and to resolve, and how the AI did. Period figures count tickets by the
+UTC day they were created.
+
+A ticket that stays Resolved for 7 days with no reply from the requester is closed by an hourly job. Change
+the number of days with `Tickets:AutoCloseAfterDays`; 0 turns it off.
+
 ### Connecting the mailbox
 
 Email is off by default (`Email:Mode` is `None`): nothing is read, and agent replies are stored but not sent.

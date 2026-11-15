@@ -95,6 +95,15 @@ public sealed record NewTicket(
     // Leave the ticket out of any team queue until the AI has classified it.
     bool DeferRouting = false);
 
+/// <summary>The "Tickets" configuration section.</summary>
+public sealed class TicketOptions
+{
+    public const string SectionName = "Tickets";
+
+    /// <summary>A resolved ticket with no reply from the requester for this many days is closed. Zero turns this off.</summary>
+    public int AutoCloseAfterDays { get; set; } = 7;
+}
+
 public enum TicketSort
 {
     Id,

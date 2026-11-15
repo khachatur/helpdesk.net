@@ -16,6 +16,7 @@ export function AppLayout() {
         <nav className="app-nav" aria-label="Main">
           <NavLink to="/tickets">Tickets</NavLink>
           <NavLink to="/knowledge-base">Knowledge base</NavLink>
+          {user?.role === 'Admin' && <NavLink to="/dashboard">Dashboard</NavLink>}
           {user?.role === 'Admin' && <NavLink to="/agents">Agents</NavLink>}
           {user?.role === 'Admin' && <NavLink to="/teams">Teams</NavLink>}
           {user?.role === 'Admin' && <NavLink to="/status">System status</NavLink>}

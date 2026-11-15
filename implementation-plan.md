@@ -154,11 +154,11 @@ Auto-send:
 
 Outcome: the admin can see how the system is performing.
 
-- [ ] 8.1 Add the job that closes Resolved tickets after the configured period. (A3)
-- [ ] 8.2 Add metric queries: open tickets by status and team, daily volume, first-response time, resolution time.
-- [ ] 8.3 Add AI metrics: classification override rate, draft acceptance rate, share of tickets resolved by auto-send, escalation rate.
-- [ ] 8.4 Build the dashboard with DevExtreme charts and a date-range filter.
-- [ ] 8.5 Show unassigned tickets and failed sends as items needing attention.
+- [x] 8.1 Add the job that closes Resolved tickets after the configured period (`Tickets:AutoCloseAfterDays`, 7 by default; runs hourly). (A3)
+- [x] 8.2 Add metric queries: open tickets by status and team, daily volume, first-response time, resolution time. Times are medians; days are UTC.
+- [x] 8.3 Add AI metrics: classification override rate, draft acceptance rate, share of tickets resolved by auto-send, escalation rate.
+- [x] 8.4 Build the dashboard with DevExtreme charts and a date-range filter.
+- [x] 8.5 Show unassigned tickets and failed sends as items needing attention, along with tickets stuck in classification and shadow-mode replies awaiting review.
 
 ## Phase 9 — Hardening and release
 

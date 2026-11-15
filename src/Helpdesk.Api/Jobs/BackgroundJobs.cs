@@ -5,6 +5,7 @@ using Helpdesk.Core.Users;
 using Helpdesk.Infrastructure;
 using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Email;
+using Helpdesk.Infrastructure.Tickets;
 using Microsoft.Extensions.Options;
 
 namespace Helpdesk.Api.Jobs;
@@ -18,6 +19,7 @@ public static class BackgroundJobs
     public const string DashboardPath = "/hangfire";
     private const string PollMailboxJobId = "poll-mailbox";
     private const string RouteStuckTicketsJobId = "route-stuck-tickets";
+    private const string CloseResolvedTicketsJobId = "close-resolved-tickets";
 
     public static bool AreEnabled(IConfiguration configuration) =>
         configuration.GetValue("BackgroundJobs:Enabled", false);
@@ -65,6 +67,15 @@ public static class BackgroundJobs
         else
         {
             recurringJobs.RemoveIfExists(PollMailboxJobId);
+        }
+
+        if (app.Services.GetRequiredService<IOptions<TicketOptions>>().Value.AutoCloseAfterDays > 0)
+        {
+            recurringJobs.AddOrUpdate<CloseResolvedTicketsJob>(CloseResolvedTicketsJobId, job => job.RunAsync(CancellationToken.None), Cron.Hourly());
+        }
+        else
+        {
+            recurringJobs.RemoveIfExists(CloseResolvedTicketsJobId);
         }
 
         if (app.Services.GetRequiredService<IOptions<AiOptions>>().Value.IsEnabled)
@@ -145,4 +156,13 @@ public sealed class HangfireAiJobQueue(IBackgroundJobClient jobs) : IAiJobQueue
 
     public void EnqueueDraft(int ticketId) =>
         jobs.Enqueue<DraftReplyJob>(job => job.RunAsync(ticketId, CancellationToken.None));
+}
+
+/// <summary>Once an hour, closes tickets that have stayed resolved for the configured number of days.</summary>
+public sealed class CloseResolvedTicketsJob(TicketStore tickets, IOptions<TicketOptions> options, TimeProvider timeProvider)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 5)]
+    [AutomaticRetry(Attempts = 0)]
+    public Task RunAsync(CancellationToken cancellationToken) =>
+        tickets.CloseResolvedBeforeAsync(timeProvider.GetUtcNow().AddDays(-options.Value.AutoCloseAfterDays), cancellationToken);
 }

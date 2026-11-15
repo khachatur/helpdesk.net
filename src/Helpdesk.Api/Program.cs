@@ -1,4 +1,5 @@
 using Helpdesk.Api.Auth;
+using Helpdesk.Api.Dashboard;
 using Helpdesk.Api.Health;
 using Helpdesk.Api.Jobs;
 using Helpdesk.Api.KnowledgeBase;
@@ -72,6 +73,7 @@ app.MapUserEndpoints();
 app.MapTicketEndpoints();
 app.MapTeamEndpoints();
 app.MapArticleEndpoints();
+app.MapDashboardEndpoints();
 app.UseHelpdeskBackgroundJobs();
 
 app.Run();

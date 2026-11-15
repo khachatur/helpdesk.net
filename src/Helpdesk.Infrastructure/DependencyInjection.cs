@@ -1,4 +1,5 @@
 using Helpdesk.Infrastructure.Ai;
+using Helpdesk.Infrastructure.Dashboard;
 using Helpdesk.Infrastructure.Data;
 using Helpdesk.Infrastructure.Email;
 using Helpdesk.Infrastructure.Identity;
@@ -24,6 +25,8 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<TicketStore>();
         services.AddSingleton<TeamStore>();
+        services.Configure<TicketOptions>(configuration.GetSection(TicketOptions.SectionName));
+        services.AddSingleton<DashboardQueries>();
         services.AddSingleton<ArticleStore>();
 
         services.Configure<AiOptions>(configuration.GetSection(AiOptions.SectionName));

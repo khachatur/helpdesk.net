@@ -109,6 +109,43 @@ public sealed partial class TicketStore
         return ids.AsList();
     }
 
+    /// <summary>
+    /// Closes tickets that were resolved before the given moment and have stayed resolved since.
+    /// A requester who has not written back in that time is taken to be satisfied. Returns how many were closed.
+    /// </summary>
+    public async Task<int> CloseResolvedBeforeAsync(DateTimeOffset resolvedBefore, CancellationToken cancellationToken)
+    {
+        await using var connection = await connectionFactory.OpenAsync(cancellationToken);
+        var ids = (await connection.QueryAsync<int>(new CommandDefinition(
+            "SELECT Id FROM dbo.Tickets WHERE Status = N'Resolved' AND ResolvedAt < @resolvedBefore ORDER BY Id",
+            new { resolvedBefore },
+            cancellationToken: cancellationToken))).AsList();
+
+        var closed = 0;
+        foreach (var id in ids)
+        {
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+            // Checked again under the lock: the requester may have replied a moment ago.
+            var current = await LockAsync(connection, transaction, id, cancellationToken);
+            var stillDue = await connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                "SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.Tickets WHERE Id = @id AND ResolvedAt < @resolvedBefore) THEN 1 ELSE 0 END",
+                new { id, resolvedBefore },
+                transaction,
+                cancellationToken: cancellationToken));
+
+            if (current?.Status == TicketStatus.Resolved && stillDue)
+            {
+                await SetStatusAsync(
+                    connection, transaction, id, TicketStatus.Resolved, TicketStatus.Closed, null, timeProvider.GetUtcNow(), cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                closed++;
+            }
+        }
+
+        return closed;
+    }
+
     /// <summary>Stores the summary and how many messages it covers.</summary>
     public async Task SaveSummaryAsync(int id, string summary, int messageCount, CancellationToken cancellationToken)
     {
