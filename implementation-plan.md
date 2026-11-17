@@ -8,125 +8,125 @@ The phases are ordered so that the system is usable by agents without any AI (en
 
 These fill open questions in the scope. Changing one changes the tasks marked with it.
 
-| # | Assumption | Affects |
-| - | ---------- | ------- |
-| A1 | Three teams with full team management, as the scope currently says. | Phase 4 |
-| A2 | Needs Human Review is a status, used for every escalation from the AI. | Phases 2, 7 |
-| A3 | Resolved tickets close automatically after 7 days without a reply. Agents can also close manually. | Phase 8 |
-| A4 | A reopened ticket returns to its previous owner if that agent is still active. | Phase 4 |
-| A5 | A deactivated agent's open tickets go back through round-robin. | Phase 4 |
-| A6 | An agent belongs to one team. | Phase 4 |
-| A7 | Agents can see all tickets, not only their team's. | Phase 2 |
-| A8 | Attachments, priority, and internal notes are out of the first release. | Phases 2, 3 |
-| A9 | The admin sets an agent's initial password; agents can change their own. No email-based reset. | Phase 1 |
+| #  | Assumption                                                                                         | Affects     |
+| -- | -------------------------------------------------------------------------------------------------- | ----------- |
+| A1 | Three teams with full team management, as the scope currently says.                                | Phase 4     |
+| A2 | Needs Human Review is a status, used for every escalation from the AI.                             | Phases 2, 7 |
+| A3 | Resolved tickets close automatically after 7 days without a reply. Agents can also close manually. | Phase 8     |
+| A4 | A reopened ticket returns to its previous owner if that agent is still active.                     | Phase 4     |
+| A5 | A deactivated agent's open tickets go back through round-robin.                                    | Phase 4     |
+| A6 | An agent belongs to one team.                                                                      | Phase 4     |
+| A7 | Agents can see all tickets, not only their team's.                                                 | Phase 2     |
+| A8 | Attachments, priority, and internal notes are out of the first release.                            | Phases 2, 3 |
+| A9 | The admin sets an agent's initial password; agents can change their own. No email-based reset.     | Phase 1     |
 
 ## Phase 0 — Project setup
 
 Outcome: an empty app that builds, runs locally, and passes CI.
 
-- [x] 0.1 Initialise the git repository, `.gitignore`, `.editorconfig`, and README.
-- [x] 0.2 Create the solution: `Helpdesk.Api`, `Helpdesk.Core`, `Helpdesk.Infrastructure`, `Helpdesk.Migrations`, and a test project.
-- [x] 0.3 Use the locally installed SQL Server (default instance, Windows authentication). Full-Text Search still has to be added to it before phase 5.
-- [x] 0.4 Set up the DbUp runner in `Helpdesk.Migrations` with a first empty script, run at startup in development.
-- [x] 0.5 Add a Dapper connection factory and a health-check endpoint that queries the database.
-- [x] 0.6 Scaffold the Vite React + TypeScript app with routing, TanStack Query, and DevExtreme (including the licence key).
-- [x] 0.7 Configure the Vite dev proxy to the API and a typed API client.
-- [x] 0.8 Set up configuration and secrets (user secrets locally, environment variables elsewhere).
-- [x] 0.9 Add structured logging and a global error handler that returns problem details.
-- [x] 0.10 Add a CI pipeline that builds and tests the API and the frontend.
+- [X] 0.1 Initialise the git repository, `.gitignore`, `.editorconfig`, and README.
+- [X] 0.2 Create the solution: `Helpdesk.Api`, `Helpdesk.Core`, `Helpdesk.Infrastructure`, `Helpdesk.Migrations`, and a test project.
+- [X] 0.3 Use the locally installed SQL Server (default instance, Windows authentication). Full-Text Search still has to be added to it before phase 5.
+- [X] 0.4 Set up the DbUp runner in `Helpdesk.Migrations` with a first empty script, run at startup in development.
+- [X] 0.5 Add a Dapper connection factory and a health-check endpoint that queries the database.
+- [X] 0.6 Scaffold the Vite React + TypeScript app with routing, TanStack Query, and DevExtreme (including the licence key).
+- [X] 0.7 Configure the Vite dev proxy to the API and a typed API client.
+- [X] 0.8 Set up configuration and secrets (user secrets locally, environment variables elsewhere).
+- [X] 0.9 Add structured logging and a global error handler that returns problem details.
+- [X] 0.10 Add a CI pipeline that builds and tests the API and the frontend.
 
 ## Phase 1 — Authentication and agent management
 
 Outcome: the seeded admin can sign in and create agents; agents can sign in.
 
-- [x] 1.1 Write the DbUp script for the users table. Each user has one role, stored as a column; there are no separate role tables.
-- [x] 1.2 Implement the custom Dapper user store (including password, email, and lockout interfaces).
-- [x] 1.3 Add the role to the sign-in cookie with a custom claims factory. No role store is needed with a single role column.
-- [x] 1.4 Configure ASP.NET Core Identity with cookie authentication and the Admin and Agent roles.
-- [x] 1.5 Seed the admin account at startup from configuration.
-- [x] 1.6 Add login, logout, and current-user endpoints, with lockout after repeated failures.
-- [x] 1.7 Add authorization policies (admin-only, any signed-in user) and apply a default that requires sign-in.
-- [x] 1.8 Build the login page, the signed-in layout, and route guards by role.
-- [x] 1.9 Add agent management endpoints: list, create, activate, deactivate, reset password. (A9)
-- [x] 1.10 Build the agent management screen (admin only).
-- [x] 1.11 Add change-password for the signed-in user.
-- [x] 1.12 Write integration tests for the stores, sign-in, and role checks.
+- [X] 1.1 Write the DbUp script for the users table. Each user has one role, stored as a column; there are no separate role tables.
+- [X] 1.2 Implement the custom Dapper user store (including password, email, and lockout interfaces).
+- [X] 1.3 Add the role to the sign-in cookie with a custom claims factory. No role store is needed with a single role column.
+- [X] 1.4 Configure ASP.NET Core Identity with cookie authentication and the Admin and Agent roles.
+- [X] 1.5 Seed the admin account at startup from configuration.
+- [X] 1.6 Add login, logout, and current-user endpoints, with lockout after repeated failures.
+- [X] 1.7 Add authorization policies (admin-only, any signed-in user) and apply a default that requires sign-in.
+- [X] 1.8 Build the login page, the signed-in layout, and route guards by role.
+- [X] 1.9 Add agent management endpoints: list, create, activate, deactivate, reset password. (A9)
+- [X] 1.10 Build the agent management screen (admin only).
+- [X] 1.11 Add change-password for the signed-in user.
+- [X] 1.12 Write integration tests for the stores, sign-in, and role checks.
 
 ## Phase 2 — Tickets (manual workflow)
 
 Outcome: tickets can be listed, filtered, opened, and worked on by hand, using seeded data.
 
-- [x] 2.1 Write the schema for tickets and ticket messages (status, category, owner, link to an original ticket, timestamps). The team column is added with the teams table in phase 4.
-- [x] 2.2 Implement the status rules in the core project: allowed transitions, Closed is final. (A2)
-- [x] 2.3 Add the ticket list endpoint with server-side filtering, sorting, and paging.
-- [x] 2.4 Add the ticket detail endpoint, returning the full conversation.
-- [x] 2.5 Add endpoints to change status, change category, and add an agent reply (stored only; sending comes in phase 3).
-- [x] 2.6 Record a ticket event history (status changes, reassignments, who and when).
-- [x] 2.7 Seed sample tickets at startup in development when the tickets table is empty (`Seed:SampleTickets`).
-- [x] 2.8 Build the ticket list with a DevExtreme DataGrid using remote paging and sorting, with filters above the grid. (A7)
-- [x] 2.9 Build the ticket detail view: conversation thread, status and category controls, reply box.
-- [x] 2.10 Sanitise email HTML on the server before display, since message bodies are untrusted. Images are removed.
-- [x] 2.11 Write tests for the status rules and the list query.
+- [X] 2.1 Write the schema for tickets and ticket messages (status, category, owner, link to an original ticket, timestamps). The team column is added with the teams table in phase 4.
+- [X] 2.2 Implement the status rules in the core project: allowed transitions, Closed is final. (A2)
+- [X] 2.3 Add the ticket list endpoint with server-side filtering, sorting, and paging.
+- [X] 2.4 Add the ticket detail endpoint, returning the full conversation.
+- [X] 2.5 Add endpoints to change status, change category, and add an agent reply (stored only; sending comes in phase 3).
+- [X] 2.6 Record a ticket event history (status changes, reassignments, who and when).
+- [X] 2.7 Seed sample tickets at startup in development when the tickets table is empty (`Seed:SampleTickets`).
+- [X] 2.8 Build the ticket list with a DevExtreme DataGrid using remote paging and sorting, with filters above the grid. (A7)
+- [X] 2.9 Build the ticket detail view: conversation thread, status and category controls, reply box.
+- [X] 2.10 Sanitise email HTML on the server before display, since message bodies are untrusted. Images are removed.
+- [X] 2.11 Write tests for the status rules and the list query.
 
 ## Phase 3 — Email integration
 
 Outcome: an email to the shared mailbox becomes a ticket, and an agent's reply reaches the student.
 
 - [ ] 3.1 Register the Entra application with mail read and send application permissions, restricted to the shared mailbox only. **Waiting on the mailbox owner; see "Connecting the mailbox" in the README.** The Graph client is written but has not been run against a real mailbox.
-- [x] 3.2 Add the Graph client behind an interface, so tests can use a fake mailbox.
-- [x] 3.3 Set up Hangfire with SQL Server storage and an admin-only dashboard.
-- [x] 3.4 Add the recurring polling job using delta queries, storing the delta token. The first read starts from now, so mail already in the inbox is left alone.
-- [x] 3.5 Make ingestion idempotent by recording each message's internet message ID.
-- [x] 3.6 Parse inbound messages: sender, subject, body as text and sanitised HTML, quoted-reply stripping.
-- [x] 3.7 Match replies to tickets using the conversation ID and reply headers; otherwise create a new ticket.
-- [x] 3.8 Apply the reply rules: append to an Open ticket, reopen a Resolved one, create a linked ticket for a Closed one.
-- [x] 3.9 Detect and skip auto-replies, bounces, mailing-list posts, and the mailbox's own messages, to prevent mail loops.
-- [x] 3.10 Send agent replies through Graph as replies in the original thread, and record the result on the message.
-- [x] 3.11 Retry failed sends and show a failed-send state on the ticket.
-- [x] 3.12 Write tests for threading, the reply rules, and idempotency against the fake mailbox.
+- [X] 3.2 Add the Graph client behind an interface, so tests can use a fake mailbox.
+- [X] 3.3 Set up Hangfire with SQL Server storage and an admin-only dashboard.
+- [X] 3.4 Add the recurring polling job using delta queries, storing the delta token. The first read starts from now, so mail already in the inbox is left alone.
+- [X] 3.5 Make ingestion idempotent by recording each message's internet message ID.
+- [X] 3.6 Parse inbound messages: sender, subject, body as text and sanitised HTML, quoted-reply stripping.
+- [X] 3.7 Match replies to tickets using the conversation ID and reply headers; otherwise create a new ticket.
+- [X] 3.8 Apply the reply rules: append to an Open ticket, reopen a Resolved one, create a linked ticket for a Closed one.
+- [X] 3.9 Detect and skip auto-replies, bounces, mailing-list posts, and the mailbox's own messages, to prevent mail loops.
+- [X] 3.10 Send agent replies through Graph as replies in the original thread, and record the result on the message.
+- [X] 3.11 Retry failed sends and show a failed-send state on the ticket.
+- [X] 3.12 Write tests for threading, the reply rules, and idempotency against the fake mailbox.
 
 ## Phase 4 — Teams, routing, and assignment
 
 Outcome: every new ticket lands in a team queue and gets an owner. The system is usable without AI from here.
 
-- [x] 4.1 Write the schema for teams, category routes, and team membership (a team column on the user), and seed the three teams. (A1, A6)
-- [x] 4.2 Add team management endpoints: create, edit (name, routed categories, default team), delete. Members are added and removed by setting each user's team. (A1)
-- [x] 4.3 Build the team management screen and add team assignment to the agent screen. (A1)
-- [x] 4.4 Add the category-to-team mapping and a routing service that sets a ticket's team.
-- [x] 4.5 Implement round-robin assignment per team, skipping inactive agents, safe under concurrent jobs.
-- [x] 4.6 Run routing and assignment on ticket creation. Until phase 6, unclassified tickets go to General Support.
-- [x] 4.7 Re-route and reassign when an agent changes a ticket's category.
-- [x] 4.8 Return a reopened ticket to its previous owner when that agent is active. (A4)
-- [x] 4.9 Reassign a deactivated agent's open tickets. (A5)
-- [x] 4.10 Handle a team with no active agents: leave the ticket unassigned and flag it on the list. Waiting tickets are assigned as soon as the team gets an active member.
-- [x] 4.11 Add team and owner filters and a "my tickets" view to the list.
-- [x] 4.12 Write tests for round-robin fairness, concurrency, and the reassignment rules.
+- [X] 4.1 Write the schema for teams, category routes, and team membership (a team column on the user), and seed the three teams. (A1, A6)
+- [X] 4.2 Add team management endpoints: create, edit (name, routed categories, default team), delete. Members are added and removed by setting each user's team. (A1)
+- [X] 4.3 Build the team management screen and add team assignment to the agent screen. (A1)
+- [X] 4.4 Add the category-to-team mapping and a routing service that sets a ticket's team.
+- [X] 4.5 Implement round-robin assignment per team, skipping inactive agents, safe under concurrent jobs.
+- [X] 4.6 Run routing and assignment on ticket creation. Until phase 6, unclassified tickets go to General Support.
+- [X] 4.7 Re-route and reassign when an agent changes a ticket's category.
+- [X] 4.8 Return a reopened ticket to its previous owner when that agent is active. (A4)
+- [X] 4.9 Reassign a deactivated agent's open tickets. (A5)
+- [X] 4.10 Handle a team with no active agents: leave the ticket unassigned and flag it on the list. Waiting tickets are assigned as soon as the team gets an active member.
+- [X] 4.11 Add team and owner filters and a "my tickets" view to the list.
+- [X] 4.12 Write tests for round-robin fairness, concurrency, and the reassignment rules.
 
 ## Phase 5 — Knowledge base
 
 Outcome: the admin can maintain articles, and the system can find the relevant ones for a question.
 
-- [x] 5.1 Write the schema for articles (title, body, published flag, `AutoSendAllowed`) with a full-text catalog and index.
-- [x] 5.2 Add article endpoints: list, read, create, edit, publish, unpublish, search. Agents can write and publish; articles are never deleted, only unpublished.
-- [x] 5.3 Build the article management screen, with `AutoSendAllowed` editable by the admin only. An agent's change to an approved article's text withdraws the approval.
-- [x] 5.4 Implement the search service: turn a question into a full-text query and return ranked published articles.
-- [x] 5.5 Add a search box to the ticket detail view so agents can look up articles and add one to their reply. It starts from the ticket's subject.
-- [x] 5.6 Load an initial set of articles and check search quality. Done with 11 **sample** articles and the sample tickets' wording, since no real articles or past questions were available: the right article is first for 10 of 11 questions and second for the other. Repeat with real content before go-live.
+- [X] 5.1 Write the schema for articles (title, body, published flag, `AutoSendAllowed`) with a full-text catalog and index.
+- [X] 5.2 Add article endpoints: list, read, create, edit, publish, unpublish, search. Agents can write and publish; articles are never deleted, only unpublished.
+- [X] 5.3 Build the article management screen, with `AutoSendAllowed` editable by the admin only. An agent's change to an approved article's text withdraws the approval.
+- [X] 5.4 Implement the search service: turn a question into a full-text query and return ranked published articles.
+- [X] 5.5 Add a search box to the ticket detail view so agents can look up articles and add one to their reply. It starts from the ticket's subject.
+- [X] 5.6 Load an initial set of articles and check search quality. Done with 11 **sample** articles and the sample tickets' wording, since no real articles or past questions were available: the right article is first for 10 of 11 questions and second for the other. Repeat with real content before go-live.
 
 ## Phase 6 — AI classification and summaries
 
 Outcome: new tickets are categorised, routed, and summarised automatically; agents can correct the result.
 
-- [x] 6.1 Add the Anthropic client behind an interface, with timeouts, retries, and configuration for model IDs.
-- [x] 6.2 Add an AI run log table (ticket, purpose, model, tokens, latency, outcome).
-- [x] 6.3 Implement classification as a Hangfire job returning structured output: category and confidence. A new ticket waits outside every queue until it is classified, so it is routed once.
-- [x] 6.4 Pass email content as clearly delimited data in the prompt, and validate the output in code.
-- [x] 6.5 Route on the classification; send low-confidence results to General Support.
-- [x] 6.6 Fall back cleanly when the AI is unavailable: the ticket is still created, routed to General Support, and marked unclassified. A once-a-minute job also routes any ticket that has waited ten minutes for classification.
-- [x] 6.7 Generate a ticket summary, refreshed when new messages arrive, and show it on the detail view.
-- [x] 6.8 Record agent category overrides so accuracy can be measured: what the AI said is stored apart from the ticket's category and is never overwritten.
-- [x] 6.9 Build an evaluation set of labelled sample emails and a script that reports classification accuracy (`eval/classification-samples.json`, `tools/Helpdesk.Eval`). **Not yet run against the real model: no API key was available.** The 36 samples are invented; replace them with real, labelled emails.
-- [x] 6.10 Write tests for the routing and fallback paths using a fake AI client.
+- [X] 6.1 Add the Anthropic client behind an interface, with timeouts, retries, and configuration for model IDs.
+- [X] 6.2 Add an AI run log table (ticket, purpose, model, tokens, latency, outcome).
+- [X] 6.3 Implement classification as a Hangfire job returning structured output: category and confidence. A new ticket waits outside every queue until it is classified, so it is routed once.
+- [X] 6.4 Pass email content as clearly delimited data in the prompt, and validate the output in code.
+- [X] 6.5 Route on the classification; send low-confidence results to General Support.
+- [X] 6.6 Fall back cleanly when the AI is unavailable: the ticket is still created, routed to General Support, and marked unclassified. A once-a-minute job also routes any ticket that has waited ten minutes for classification.
+- [X] 6.7 Generate a ticket summary, refreshed when new messages arrive, and show it on the detail view.
+- [X] 6.8 Record agent category overrides so accuracy can be measured: what the AI said is stored apart from the ticket's category and is never overwritten.
+- [X] 6.9 Build an evaluation set of labelled sample emails and a script that reports classification accuracy (`eval/classification-samples.json`, `tools/Helpdesk.Eval`). **Not yet run against the real model: no API key was available.** The 36 samples are invented; replace them with real, labelled emails.
+- [X] 6.10 Write tests for the routing and fallback paths using a fake AI client.
 
 ## Phase 7 — AI drafts and auto-send
 
@@ -134,41 +134,41 @@ Outcome: agents get a suggested reply on each ticket, and approved FAQ answers g
 
 Drafts:
 
-- [x] 7.1 Implement draft generation: retrieve articles, generate a reply, and return the source article IDs and confidence as structured output.
-- [x] 7.2 Store drafts with their sources, and regenerate when the student replies. A ticket has at most one pending draft; the older one is marked superseded.
-- [x] 7.3 Show the suggested reply on the detail view with its source articles; let the agent edit, send, or discard it.
-- [x] 7.4 Record whether each draft was sent unchanged, edited, or discarded. An agent who writes their own reply instead counts as discarding it.
+- [X] 7.1 Implement draft generation: retrieve articles, generate a reply, and return the source article IDs and confidence as structured output.
+- [X] 7.2 Store drafts with their sources, and regenerate when the student replies. A ticket has at most one pending draft; the older one is marked superseded.
+- [X] 7.3 Show the suggested reply on the detail view with its source articles; let the agent edit, send, or discard it.
+- [X] 7.4 Record whether each draft was sent unchanged, edited, or discarded. An agent who writes their own reply instead counts as discarding it.
 
 Auto-send:
 
-- [x] 7.5 Implement the auto-send gate in code (`AutoSendGate`): every source article is `AutoSendAllowed`, confidence is above the threshold, the topic is not on the never-auto-send list, and auto-send is not disabled on the ticket. Also required: the ticket is open, has a category other than refund, and has not been answered before.
-- [x] 7.6 Add a global auto-send switch and the confidence threshold to configuration.
-- [x] 7.7 Shadow mode is built: a reply that passes every check is recorded as "would send" and shown to the agent as such. **Still to do: run it on real tickets and review the results with agents.**
-- [x] 7.8 Send approved replies through the phase 3 pipeline, marked as AI-sent on the ticket and in the event history.
-- [x] 7.9 Escalate to Needs Human Review when confidence is low or no article matches. (A2)
-- [x] 7.10 On a student reply to an AI-sent response: set Needs Human Review, disable auto-send on the ticket, and queue it for an agent.
-- [x] 7.11 Write tests covering every branch of the gate, including prompt-injection sample emails.
+- [X] 7.5 Implement the auto-send gate in code (`AutoSendGate`): every source article is `AutoSendAllowed`, confidence is above the threshold, the topic is not on the never-auto-send list, and auto-send is not disabled on the ticket. Also required: the ticket is open, has a category other than refund, and has not been answered before.
+- [X] 7.6 Add a global auto-send switch and the confidence threshold to configuration.
+- [X] 7.7 Shadow mode is built: a reply that passes every check is recorded as "would send" and shown to the agent as such. **Still to do: run it on real tickets and review the results with agents.**
+- [X] 7.8 Send approved replies through the phase 3 pipeline, marked as AI-sent on the ticket and in the event history.
+- [X] 7.9 Escalate to Needs Human Review when confidence is low or no article matches. (A2)
+- [X] 7.10 On a student reply to an AI-sent response: set Needs Human Review, disable auto-send on the ticket, and queue it for an agent.
+- [X] 7.11 Write tests covering every branch of the gate, including prompt-injection sample emails.
 - [ ] 7.12 Turn auto-send on for a small set of articles and widen it as results allow. **Waiting on an API key and on the shadow-mode review. Auto-send is off by default.**
 
 ## Phase 8 — Dashboard and ticket lifecycle
 
 Outcome: the admin can see how the system is performing.
 
-- [x] 8.1 Add the job that closes Resolved tickets after the configured period (`Tickets:AutoCloseAfterDays`, 7 by default; runs hourly). (A3)
-- [x] 8.2 Add metric queries: open tickets by status and team, daily volume, first-response time, resolution time. Times are medians; days are UTC.
-- [x] 8.3 Add AI metrics: classification override rate, draft acceptance rate, share of tickets resolved by auto-send, escalation rate.
-- [x] 8.4 Build the dashboard with DevExtreme charts and a date-range filter.
-- [x] 8.5 Show unassigned tickets and failed sends as items needing attention, along with tickets stuck in classification and shadow-mode replies awaiting review.
+- [X] 8.1 Add the job that closes Resolved tickets after the configured period (`Tickets:AutoCloseAfterDays`, 7 by default; runs hourly). (A3)
+- [X] 8.2 Add metric queries: open tickets by status and team, daily volume, first-response time, resolution time. Times are medians; days are UTC.
+- [X] 8.3 Add AI metrics: classification override rate, draft acceptance rate, share of tickets resolved by auto-send, escalation rate.
+- [X] 8.4 Build the dashboard with DevExtreme charts and a date-range filter.
+- [X] 8.5 Show unassigned tickets and failed sends as items needing attention, along with tickets stuck in classification and shadow-mode replies awaiting review.
 
 ## Phase 9 — Hardening and release
 
 Outcome: the system is deployed and running on the real mailbox.
 
-- [x] 9.1 Write Playwright end-to-end tests for the main flows: sign in, work a ticket, manage agents, approve a draft. 24 tests in `web/e2e`, run against the API-served production build and a throwaway database; also in CI.
-- [x] 9.2 Review authorization on every endpoint and add rate limiting to sign-in. The review is kept as tests that list every endpoint. Also added: security headers with a content security policy.
+- [X] 9.1 Write Playwright end-to-end tests for the main flows: sign in, work a ticket, manage agents, approve a draft. 24 tests in `web/e2e`, run against the API-served production build and a throwaway database; also in CI.
+- [X] 9.2 Review authorization on every endpoint and add rate limiting to sign-in. The review is kept as tests that list every endpoint. Also added: security headers with a content security policy.
 - [ ] 9.3 Provision Azure App Service, Azure SQL Database (with full-text search enabled), and a secret store. **Waiting on an Azure subscription.**
 - [ ] 9.4 Add the deployment pipeline, with DbUp migrations as a deployment step. **Half done:** CI packages a deployable build (the API serving the web app, plus the migration tool `Helpdesk.DbTool`). The step that deploys it to Azure waits on 9.3.
 - [ ] 9.5 Add monitoring and alerts: failed Hangfire jobs, a stalled mailbox poll, AI error rate. **Half done:** `/api/system/status` and the System status page report all three with a healthy flag each. Sending alerts needs a monitoring service, which waits on 9.3.
 - [ ] 9.6 Decide and implement data retention for tickets and AI logs. **Waiting on a decision.** Nothing is deleted automatically today.
 - [ ] 9.7 Run a pilot on a test mailbox, then switch to the production mailbox with auto-send off. **Waiting on the mailbox (3.1) and an API key.**
-- [x] 9.8 Write a short runbook: how to turn off auto-send, re-run failed jobs, and add an agent (`docs/runbook.md`).
+- [X] 9.8 Write a short runbook: how to turn off auto-send, re-run failed jobs, and add an agent (`docs/runbook.md`).
