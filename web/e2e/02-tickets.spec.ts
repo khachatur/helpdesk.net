@@ -11,22 +11,21 @@ test('the ticket list shows active tickets and pages through them', async ({ pag
   await snapshot(page, '02-ticket-list')
 
   // Every row on the default view is still active.
-  const statuses = await gridRows(page).locator('.badge').allTextContents()
-  expect(statuses.every((status) => status === 'Open' || status === 'Needs human review')).toBe(true)
+  await expect(gridRows(page).filter({ hasNotText: /Open|Needs human review/ })).toHaveCount(0)
 })
 
 test('filters narrow the list and are kept in the address', async ({ page }) => {
   await choose(page, 'Status', 'Resolved')
   await expect(page).toHaveURL(/status=Resolved/)
-  await expect(gridRows(page).first()).toBeVisible()
-  const statuses = await gridRows(page).locator('.badge').allTextContents()
-  expect(statuses.length).toBeGreaterThan(0)
-  expect(statuses.every((status) => status === 'Resolved')).toBe(true)
+  // The list reloads after the filter changes, so wait for it rather than reading the rows at once.
+  await expect(gridRows(page).first()).toContainText('Resolved')
+  await expect(gridRows(page).filter({ hasNotText: 'Resolved' })).toHaveCount(0)
 
   await choose(page, 'Status', 'All statuses')
   await choose(page, 'Category', 'Refund request')
   await expect(page).toHaveURL(/category=RefundRequest/)
   await expect(gridRows(page).first()).toContainText('Refund request')
+  await expect(gridRows(page).filter({ hasNotText: 'Refund request' })).toHaveCount(0)
 
   await searchTickets(page, 'Charged twice')
   await expect(gridRows(page).first()).toContainText('Charged twice for the same course')
