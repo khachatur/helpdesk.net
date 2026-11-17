@@ -25,11 +25,11 @@ public static class UserEndpoints
         group.MapGet("/", ListAsync);
         group.MapPost("/", CreateAgentAsync);
         group.MapPost("/{id:guid}/activate",
-            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, CancellationToken cancellationToken) =>
-                SetActiveAsync(id, isActive: true, users, caller, tickets, cancellationToken));
+            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, DatabaseTicketStore sessions, CancellationToken cancellationToken) =>
+                SetActiveAsync(id, isActive: true, users, caller, tickets, sessions, cancellationToken));
         group.MapPost("/{id:guid}/deactivate",
-            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, CancellationToken cancellationToken) =>
-                SetActiveAsync(id, isActive: false, users, caller, tickets, cancellationToken));
+            (Guid id, UserManager<User> users, ClaimsPrincipal caller, TicketStore tickets, DatabaseTicketStore sessions, CancellationToken cancellationToken) =>
+                SetActiveAsync(id, isActive: false, users, caller, tickets, sessions, cancellationToken));
         group.MapPut("/{id:guid}/team", SetTeamAsync);
         group.MapPost("/{id:guid}/password", SetPasswordAsync);
 
@@ -107,6 +107,7 @@ public static class UserEndpoints
         UserManager<User> userManager,
         ClaimsPrincipal caller,
         TicketStore tickets,
+        DatabaseTicketStore sessions,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
@@ -135,6 +136,8 @@ public static class UserEndpoints
         if (!isActive)
         {
             // Their open tickets go to other members of each ticket's team.
+            // Signed out everywhere at once, not just at the next security-stamp check.
+            await sessions.RemoveForUserAsync(user.Id, exceptKey: null, cancellationToken);
             await tickets.ReassignFromUserAsync(user.Id, keepInTeamId: null, cancellationToken);
         }
         else if (user.TeamId is { } teamId)
@@ -187,7 +190,11 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ValidationProblem>> SetPasswordAsync(
-        Guid id, SetPasswordRequest request, UserManager<User> userManager)
+        Guid id,
+        SetPasswordRequest request,
+        UserManager<User> userManager,
+        DatabaseTicketStore sessions,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
@@ -213,7 +220,13 @@ public static class UserEndpoints
         user.AccessFailedCount = 0;
         user.LockoutEnd = null;
         var result = await userManager.UpdateSecurityStampAsync(user);
+        if (!result.Succeeded)
+        {
+            return TypedResults.NotFound();
+        }
 
-        return result.Succeeded ? TypedResults.NoContent() : TypedResults.NotFound();
+        // Whoever knew the old password is signed out everywhere.
+        await sessions.RemoveForUserAsync(user.Id, exceptKey: null, cancellationToken);
+        return TypedResults.NoContent();
     }
 }

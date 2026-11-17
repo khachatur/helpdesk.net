@@ -1,6 +1,7 @@
 using Helpdesk.Api.Users;
 using Helpdesk.Core.Users;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Helpdesk.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace Helpdesk.Api.Auth;
@@ -81,7 +82,9 @@ public static class AuthEndpoints
         ChangePasswordRequest request,
         HttpContext context,
         UserManager<User> userManager,
-        SignInManager<User> signInManager)
+        SignInManager<User> signInManager,
+        DatabaseTicketStore sessions,
+        CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(context.User);
         if (user is null || !user.IsActive)
@@ -96,9 +99,10 @@ public static class AuthEndpoints
             return TypedResults.ValidationProblem(result.Errors.ToValidationErrors(passwordField: "newPassword"));
         }
 
-        // Changing the password changes the security stamp, which signs out every other session.
-        // Re-issue this session's cookie so the current browser stays signed in.
+        // This browser's session is brought up to date and kept; every other session of the user is
+        // ended, so anyone still signed in with the old password is out at once.
         await signInManager.RefreshSignInAsync(user);
+        await sessions.RemoveForUserAsync(user.Id, DatabaseTicketStore.CurrentKey(context), cancellationToken);
         return TypedResults.NoContent();
     }
 }

@@ -14,7 +14,7 @@ See [project-scope.md](project-scope.md) for what the system does.
 | Background jobs       | Hangfire with SQL Server storage                                       |
 | Email                 | Microsoft Graph SDK, polling the shared mailbox with delta queries     |
 | AI                    | Claude through the Anthropic C# SDK                                    |
-| Authentication        | ASP.NET Core Identity with custom Dapper stores, cookie sessions       |
+| Authentication        | ASP.NET Core Identity with custom Dapper stores, database sessions     |
 | Hosting               | Azure App Service and Azure SQL Database; local SQL Server in development |
 | Testing               | xUnit, a separate test database on the local SQL Server, Playwright for end-to-end |
 
@@ -60,7 +60,12 @@ See [project-scope.md](project-scope.md) for what the system does.
 - ASP.NET Core Identity uses a custom Dapper user store. EF Core is not used anywhere.
 - Each user has one role (Admin or Agent), stored as a column on the users table, so there is no role store or role tables.
 - The users table is created by a DbUp script like the rest of the schema.
-- Sessions use an HttpOnly, SameSite=Strict cookie. The web app and API are served from the same site, which is the CSRF defence.
+- **Sessions are kept in the database** (`dbo.UserSessions`), not in the cookie. The cookie, HttpOnly and SameSite=Strict, carries only a random 256-bit session id; the table stores a SHA-256 hash of that id, never the id itself, so a copy of the database cannot be used to sign in. The web app and API are served from the same site, which is the CSRF defence.
+- Because the server holds the session, it can end it: signing out deletes the row, so a copied cookie stops working at once. Deactivating a user and an admin password reset delete all of the user's sessions; changing your own password keeps the session you changed it from and deletes the rest.
+- Sessions last 8 hours, extended while in use. Expired sessions are refused at once and deleted by an hourly job.
+- The user's security stamp is still re-checked every minute as a backstop for any other change to the account.
+- The store plugs into ASP.NET Core's cookie authentication as its `SessionStore` (`DatabaseTicketStore`), so sign-in, sign-out and expiry work exactly as before.
+- The cookie is still encrypted with ASP.NET Core data protection keys. In production these keys must survive restarts and be shared by every instance, or everyone is signed out on each deployment; that configuration is part of the hosting work (task 9.3).
 - Sign-in is limited to 10 attempts a minute per client address, on top of the per-account lockout.
 - Every response carries a content security policy that allows scripts only from the application itself, as a second line of defence behind the email HTML sanitiser.
 - In production one process serves both the API and the built web app (`wwwroot`), so there is a single thing to deploy.

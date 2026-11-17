@@ -5,6 +5,7 @@ using Helpdesk.Core.Users;
 using Helpdesk.Infrastructure;
 using Helpdesk.Infrastructure.Ai;
 using Helpdesk.Infrastructure.Email;
+using Helpdesk.Infrastructure.Identity;
 using Helpdesk.Infrastructure.Tickets;
 using Microsoft.Extensions.Options;
 
@@ -20,6 +21,7 @@ public static class BackgroundJobs
     private const string PollMailboxJobId = "poll-mailbox";
     private const string RouteStuckTicketsJobId = "route-stuck-tickets";
     private const string CloseResolvedTicketsJobId = "close-resolved-tickets";
+    private const string RemoveExpiredSessionsJobId = "remove-expired-sessions";
 
     public static bool AreEnabled(IConfiguration configuration) =>
         configuration.GetValue("BackgroundJobs:Enabled", false);
@@ -68,6 +70,8 @@ public static class BackgroundJobs
         {
             recurringJobs.RemoveIfExists(PollMailboxJobId);
         }
+
+        recurringJobs.AddOrUpdate<RemoveExpiredSessionsJob>(RemoveExpiredSessionsJobId, job => job.RunAsync(CancellationToken.None), Cron.Hourly());
 
         if (app.Services.GetRequiredService<IOptions<TicketOptions>>().Value.AutoCloseAfterDays > 0)
         {
@@ -165,4 +169,12 @@ public sealed class CloseResolvedTicketsJob(TicketStore tickets, IOptions<Ticket
     [AutomaticRetry(Attempts = 0)]
     public Task RunAsync(CancellationToken cancellationToken) =>
         tickets.CloseResolvedBeforeAsync(timeProvider.GetUtcNow().AddDays(-options.Value.AutoCloseAfterDays), cancellationToken);
+}
+
+/// <summary>Once an hour, deletes sign-in sessions that have expired. They are refused already; this keeps the table small.</summary>
+public sealed class RemoveExpiredSessionsJob(DatabaseTicketStore sessions)
+{
+    [DisableConcurrentExecution(timeoutInSeconds: 5)]
+    [AutomaticRetry(Attempts = 0)]
+    public Task RunAsync(CancellationToken cancellationToken) => sessions.RemoveExpiredAsync(cancellationToken);
 }

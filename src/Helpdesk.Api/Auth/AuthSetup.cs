@@ -1,5 +1,6 @@
 using Helpdesk.Core.Users;
 using Helpdesk.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 
@@ -25,6 +26,10 @@ public static class AuthSetup
             .AddClaimsPrincipalFactory<AppClaimsPrincipalFactory>();
 
         services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+
+        // The session lives in the database; the cookie only names it. See DatabaseTicketStore.
+        services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
+            .Configure<DatabaseTicketStore>((options, store) => options.SessionStore = store);
 
         services.ConfigureApplicationCookie(options =>
         {
@@ -52,8 +57,8 @@ public static class AuthSetup
             };
         });
 
-        // A session is re-checked against the user's security stamp at this interval, so a
-        // deactivated user or a changed password ends other sessions within a minute.
+        // Deactivation and password changes delete the user's sessions directly. The security stamp
+        // is still re-checked at this interval as a backstop, for any other change to the account.
         services.Configure<SecurityStampValidatorOptions>(options =>
             options.ValidationInterval = TimeSpan.FromMinutes(1));
 

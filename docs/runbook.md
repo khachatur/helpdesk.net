@@ -85,12 +85,13 @@ person; they change it under **Change password**.
 
 ### An agent leaves
 
-**Agents → Deactivate**. They are signed out within a minute and cannot sign in. Their open tickets go to
-their teammates at once.
+**Agents → Deactivate**. All their sessions are deleted, so they are signed out at once on every device,
+and they cannot sign in again. Their open tickets go to their teammates at once.
 
 ### An agent forgot their password or is locked out
 
-**Agents → Reset password**. This also clears the lockout. Lockouts otherwise end by themselves after 15 minutes.
+**Agents → Reset password**. This also clears the lockout and signs them out on every device. Lockouts
+otherwise end by themselves after 15 minutes.
 
 ### The admin password is lost
 
@@ -122,7 +123,10 @@ password or deactivate it from the Agents page.
 ## Data
 
 - **Backups:** everything is in the one SQL Server database, including the background job queue (`HangFire`
-  schema). Back it up as a whole.
+  schema) and sign-in sessions (`dbo.UserSessions`). Back it up as a whole. Restoring an older backup signs
+  out everyone who signed in after it was taken.
+- **Sign everyone out:** `DELETE FROM dbo.UserSessions;` ends every session at once, for example after a
+  suspected leak.
 - **Retention:** nothing is deleted automatically. Tickets, emails, AI drafts and the AI call log are kept
   until someone decides otherwise; a retention policy is still an open decision.
 - **What leaves the system:** with AI on, ticket subjects, message text and knowledge base articles are sent

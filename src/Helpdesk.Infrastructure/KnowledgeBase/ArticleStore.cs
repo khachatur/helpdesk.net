@@ -158,12 +158,16 @@ public sealed class ArticleStore(IDbConnectionFactory connectionFactory, TimePro
             var pending = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
                 """
                 -- "Nothing pending" alone can be true for an instant before indexing of a fresh change
-                -- begins, so the number of indexed rows must also equal the number of articles.
+                -- begins, and a count of indexed rows can match by chance while deletions are still
+                -- counted. So every article must actually be found in the index.
                 SELECT CASE WHEN FULLTEXTCATALOGPROPERTY(N'HelpdeskCatalog', 'PopulateStatus') = 0
                              AND OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextPendingChanges') = 0
                              AND OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextPopulateStatus') = 0
-                             AND CONVERT(INT, OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Articles'), 'TableFulltextItemCount'))
-                                 = (SELECT COUNT(*) FROM dbo.Articles)
+                             AND NOT EXISTS (
+                                 SELECT 1 FROM dbo.Articles a
+                                 WHERE NOT EXISTS (
+                                     SELECT 1 FROM sys.dm_fts_index_keywords_by_document(DB_ID(), OBJECT_ID(N'dbo.Articles')) k
+                                     WHERE k.document_id = a.Id))
                             THEN 0 ELSE 1 END
                 """,
                 cancellationToken: cancellationToken));

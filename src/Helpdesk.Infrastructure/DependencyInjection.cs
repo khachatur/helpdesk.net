@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddSingleton<IDbConnectionFactory>(_ =>
             new SqlConnectionFactory(configuration.GetRequiredHelpdeskConnectionString()));
         services.AddSingleton<UserQueries>();
+        services.AddSingleton<DatabaseTicketStore>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<TicketStore>();
         services.AddSingleton<TeamStore>();
